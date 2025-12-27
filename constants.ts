@@ -1,6 +1,6 @@
 import { Course, Employee, Language } from './types';
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.3.1';
 
 export const COURSES: Course[] = [
   { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', type: 'internal', participants: 45, completion: 78, status: 'active' },
@@ -14,7 +14,7 @@ export const COURSES: Course[] = [
 export const EMPLOYEES: Employee[] = [
   { 
     id: 1, 
-    name: 'Ali Ahmadi', 
+    name: 'علی احمدی', 
     department: 'تولید نورد', 
     coursesCompleted: 5, 
     lastTraining: '1403/07/15',
@@ -25,7 +25,7 @@ export const EMPLOYEES: Employee[] = [
   },
   { 
     id: 2, 
-    name: 'Maryam Karimi', 
+    name: 'مریم کریمی', 
     department: 'کنترل کیفی', 
     coursesCompleted: 8, 
     lastTraining: '1403/07/20',
@@ -37,7 +37,7 @@ export const EMPLOYEES: Employee[] = [
   },
   { 
     id: 3, 
-    name: 'Reza Mohammadi', 
+    name: 'رضا محمدی', 
     department: 'فنی و مهندسی', 
     coursesCompleted: 6, 
     lastTraining: '1403/07/18',
@@ -47,7 +47,7 @@ export const EMPLOYEES: Employee[] = [
   },
   { 
     id: 4, 
-    name: 'Sara Saeedi', 
+    name: 'سارا سعیدی', 
     department: 'منابع انسانی', 
     coursesCompleted: 3, 
     lastTraining: '1403/08/01',
@@ -133,6 +133,7 @@ export const TRANSLATIONS = {
     emp_col_score: 'نمره',
     emp_col_cert: 'گواهینامه',
     btn_generate_cert: 'صدور مدرک هوشمند',
+    btn_import_excel: 'بارگذاری اکسل پرسنل',
     cert_generating: 'در حال طراحی گواهینامه...',
     cert_modal_title: 'گواهینامه پایان دوره',
     cert_quality_label: 'کیفیت تصویر:',
@@ -222,6 +223,7 @@ export const TRANSLATIONS = {
     emp_col_score: 'Score',
     emp_col_cert: 'Certificate',
     btn_generate_cert: 'Smart Certificate',
+    btn_import_excel: 'Import Staff Excel',
     cert_generating: 'Designing Certificate...',
     cert_modal_title: 'Completion Certificate',
     cert_quality_label: 'Image Quality:',

@@ -197,6 +197,18 @@ export class GeminiLiveSession {
   }
 
   async start(onClose: () => void) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error(this.lang === 'fa' ? "مرورگر شما از ضبط صدا پشتیبانی نمی‌کند." : "Your browser does not support audio recording.");
+    }
+
+    let stream: MediaStream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        console.error("Microphone access failed:", err);
+        throw new Error(this.lang === 'fa' ? "دسترسی به میکروفون امکان‌پذیر نیست. لطفا اتصال یا مجوزها را بررسی کنید." : "Microphone not found or permission denied.");
+    }
+
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     
     this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -204,8 +216,6 @@ export class GeminiLiveSession {
     
     const outputNode = this.outputAudioContext.createGain();
     outputNode.connect(this.outputAudioContext.destination);
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
     this.sessionPromise = ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-09-2025',

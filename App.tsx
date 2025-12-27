@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -15,23 +16,24 @@ import {
   MicOff, 
   Send, 
   Loader2, 
-  TrendingUp,
-  BrainCircuit,
-  MoreVertical,
-  CheckCircle,
-  Download,
-  Calendar,
-  Filter,
-  FileText,
-  Plus,
-  Trash,
-  Edit,
-  GraduationCap,
-  Building2,
-  Globe,
-  Upload,
-  Image as ImageIcon,
-  KeyRound
+  TrendingUp, 
+  BrainCircuit, 
+  MoreVertical, 
+  CheckCircle, 
+  Download, 
+  Calendar, 
+  Filter, 
+  FileText, 
+  Plus, 
+  Trash, 
+  Edit, 
+  GraduationCap, 
+  Building2, 
+  Globe, 
+  Upload, 
+  Image as ImageIcon, 
+  KeyRound, 
+  FileSpreadsheet
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -90,6 +92,7 @@ const App = () => {
   
   // Data State
   const [coursesList, setCoursesList] = useState(COURSES);
+  const [employeesList, setEmployeesList] = useState<Employee[]>(EMPLOYEES);
   
   // Modal & Action Menu State
   const [isNewCourseModalOpen, setIsNewCourseModalOpen] = useState(false);
@@ -184,6 +187,39 @@ const App = () => {
     }
   };
 
+  // Logic to handle Excel upload for employees
+  const handleExcelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const newEmployees: Employee[] = jsonData.map((row: any, index: number) => ({
+          id: Date.now() + index,
+          name: row['نام'] || row['Name'] || 'Unknown',
+          department: row['واحد'] || row['Department'] || 'General',
+          coursesCompleted: 0,
+          lastTraining: '-',
+          completedCoursesList: []
+        }));
+
+        setEmployeesList(prev => [...prev, ...newEmployees]);
+        alert(lang === 'fa' ? `${newEmployees.length} نفر با موفقیت اضافه شدند.` : `${newEmployees.length} employees added successfully.`);
+      } catch (error) {
+        console.error('Error parsing Excel:', error);
+        alert(lang === 'fa' ? 'خطا در خواندن فایل اکسل.' : 'Error reading Excel file.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleSelectApiKey = async () => {
     if (window.aistudio && window.aistudio.openSelectKey) {
        await window.aistudio.openSelectKey();
@@ -216,10 +252,6 @@ const App = () => {
     } catch (error) {
       console.error(error);
       alert('Error generating certificate. Please ensure you have selected a valid paid API key for high-quality image generation.');
-      // If error might be due to key, reset
-      if (window.aistudio) {
-         // Optional: logic to reset key if needed, but usually we just prompt again next time
-      }
     } finally {
       setIsGeneratingCert(false);
     }
@@ -304,9 +336,10 @@ const App = () => {
           setIsVoiceMode(false);
           liveSession.current = null;
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to start live session', error);
         setIsVoiceMode(false);
+        alert(error.message || "Failed to access microphone.");
       }
     }
   };
@@ -632,18 +665,20 @@ const App = () => {
             {/* Employees View */}
             {activeTab === Tab.Employees && (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 min-h-[400px]">
-                 <div className="text-center mb-8">
-                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                     <Users className="w-8 h-8 text-slate-500" />
+                 <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+                   <div className="text-center md:text-right flex-1">
+                     <h3 className="text-xl font-bold text-slate-900">{t.emp_title}</h3>
+                     <p className="text-slate-500 text-sm mt-1">{t.emp_subtitle}</p>
                    </div>
-                   <h3 className="text-xl font-bold text-slate-900">{t.emp_title}</h3>
-                   <p className="text-slate-500 max-w-md mx-auto mt-2 text-sm">
-                     {t.emp_subtitle}
-                   </p>
+                   <label className={`flex items-center gap-2 px-4 py-2.5 bg-${theme}-600 text-white rounded-xl cursor-pointer hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
+                     <FileSpreadsheet size={18} />
+                     <span className="text-sm font-medium">{t.btn_import_excel}</span>
+                     <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
+                   </label>
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {EMPLOYEES.map(emp => (
+                    {employeesList.map(emp => (
                       <div 
                         key={emp.id} 
                         onClick={() => setSelectedEmployee(emp)}
