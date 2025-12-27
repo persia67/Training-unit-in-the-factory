@@ -115,6 +115,8 @@ export const generateCertificate = async (
   employeeName: string, 
   courseName: string, 
   logoBase64: string | null,
+  ceoName: string,
+  managerName: string,
   size: ImageSize = '1K',
   lang: Language = 'fa'
 ) => {
@@ -146,7 +148,10 @@ export const generateCertificate = async (
     Structure:
     - Header: "CERTIFICATE OF ACHIEVEMENT" or "CERTIFICATE OF COMPLETION".
     - Logo: Incorporate the provided logo image at the top center or top left if provided.
-    - Signatures: Include two blank signature lines at the bottom labeled "CEO" and "Head of Training". LEAVE THE SIGNATURE SPACE EMPTY.
+    - Signatures: Create two distinct signature areas at the bottom with lines. 
+      * Left Side Label/Name: "Training Manager: ${managerName || 'Manager'}"
+      * Right Side Label/Name: "CEO: ${ceoName || 'CEO'}"
+      * LEAVE THE ACTUAL SIGNATURE SPACE EMPTY/BLANK for handwritten signatures.
     - Date: Include a placeholder for the date.
     
     Ensure the text is legible, sharp, and spelled correctly. The overall look should be premium and suitable for printing.

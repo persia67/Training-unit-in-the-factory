@@ -33,7 +33,9 @@ import {
   Upload, 
   Image as ImageIcon, 
   KeyRound, 
-  FileSpreadsheet
+  FileSpreadsheet,
+  UserCog,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -43,7 +45,7 @@ import {
   TRANSLATIONS,
   APP_VERSION
 } from './constants';
-import { Tab, Language, ThemeColor, Message, Employee, ImageSize } from './types';
+import { Tab, Language, ThemeColor, Message, Employee, ImageSize, SystemSettings, UserRole } from './types';
 import { streamGeminiResponse, analyzeDashboardData, GeminiLiveSession, generateCertificate } from './services/geminiService';
 
 // Simple CSS Chart Components
@@ -89,7 +91,16 @@ const App = () => {
   const [lang, setLang] = useState<Language>('fa');
   const [theme, setTheme] = useState<ThemeColor>('blue');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('admin');
   
+  // Settings State
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
+    companyName: 'Danial Steel Co.',
+    ceoName: 'Dr. Rezaei',
+    trainingManagerName: 'Eng. Kamali',
+    logo: null
+  });
+
   // Data State
   const [coursesList, setCoursesList] = useState(COURSES);
   const [employeesList, setEmployeesList] = useState<Employee[]>(EMPLOYEES);
@@ -104,7 +115,6 @@ const App = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isGeneratingCert, setIsGeneratingCert] = useState(false);
   const [generatedCertUrl, setGeneratedCertUrl] = useState<string | null>(null);
-  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [certImageSize, setCertImageSize] = useState<ImageSize>('1K');
   const [hasApiKey, setHasApiKey] = useState(false);
 
@@ -181,10 +191,14 @@ const App = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCompanyLogo(reader.result as string);
+        setSystemSettings(prev => ({...prev, logo: reader.result as string}));
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSettingsChange = (field: keyof SystemSettings, value: string) => {
+    setSystemSettings(prev => ({...prev, [field]: value}));
   };
 
   // Logic to handle Excel upload for employees
@@ -247,7 +261,15 @@ const App = () => {
     setIsGeneratingCert(true);
     setGeneratedCertUrl(null);
     try {
-      const url = await generateCertificate(selectedEmployee.name, courseName, companyLogo, certImageSize, lang);
+      const url = await generateCertificate(
+        selectedEmployee.name, 
+        courseName, 
+        systemSettings.logo, 
+        systemSettings.ceoName,
+        systemSettings.trainingManagerName,
+        certImageSize, 
+        lang
+      );
       setGeneratedCertUrl(url);
     } catch (error) {
       console.error(error);
@@ -406,14 +428,40 @@ const App = () => {
         </nav>
 
         <div className="p-6 shrink-0 mt-auto">
+          {/* User Role Switcher for Demo */}
+          <div className="mb-4 bg-slate-800 rounded-xl p-3 border border-slate-700">
+             <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-2 block flex items-center gap-1">
+               <UserCog size={10} />
+               {t.switch_role}
+             </label>
+             <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
+                <button 
+                  onClick={() => setUserRole('admin')}
+                  className={`flex-1 py-1.5 rounded-md text-[10px] font-medium transition ${userRole === 'admin' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                >
+                  Admin
+                </button>
+                <button 
+                  onClick={() => setUserRole('training_manager')}
+                  className={`flex-1 py-1.5 rounded-md text-[10px] font-medium transition ${userRole === 'training_manager' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                >
+                  Manager
+                </button>
+             </div>
+          </div>
+
           <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
             <div className="flex items-center gap-3 mb-3">
-              <div className={`w-8 h-8 rounded-full bg-${theme}-500 flex items-center justify-center text-xs font-bold`}>
-                AD
+              <div className={`w-8 h-8 rounded-full bg-${userRole === 'admin' ? theme : 'emerald'}-500 flex items-center justify-center text-xs font-bold`}>
+                {userRole === 'admin' ? 'AD' : 'TM'}
               </div>
               <div className="overflow-hidden">
-                <p className="text-xs font-semibold truncate">{t.role_admin}</p>
-                <p className="text-[10px] text-slate-500 truncate">admin@danialsteel.com</p>
+                <p className="text-xs font-semibold truncate">
+                  {userRole === 'admin' ? t.role_admin : t.role_training_manager}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate">
+                   {userRole === 'admin' ? 'admin@danialsteel.com' : 'training@danialsteel.com'}
+                </p>
               </div>
             </div>
             <button className="w-full text-xs text-red-400 font-medium hover:text-red-300 transition">
@@ -566,13 +614,15 @@ const App = () => {
                         {t.filter_type_external}
                       </button>
                     </div>
-                    <button 
-                      onClick={() => setIsNewCourseModalOpen(true)}
-                      className={`bg-${theme}-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-${theme}-700 flex items-center gap-2`}
-                    >
-                      <Plus size={16} />
-                      {t.btn_new_course}
-                    </button>
+                    {userRole === 'admin' && (
+                      <button 
+                        onClick={() => setIsNewCourseModalOpen(true)}
+                        className={`bg-${theme}-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-${theme}-700 flex items-center gap-2`}
+                      >
+                        <Plus size={16} />
+                        {t.btn_new_course}
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="overflow-visible">
@@ -618,15 +668,17 @@ const App = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right relative">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenActionMenuId(openActionMenuId === course.id ? null : course.id);
-                              }}
-                              className="text-slate-400 hover:text-blue-600 p-1 rounded-full hover:bg-slate-100 transition"
-                            >
-                              <MoreVertical size={18} />
-                            </button>
+                            {userRole === 'admin' && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionMenuId(openActionMenuId === course.id ? null : course.id);
+                                }}
+                                className="text-slate-400 hover:text-blue-600 p-1 rounded-full hover:bg-slate-100 transition"
+                              >
+                                <MoreVertical size={18} />
+                              </button>
+                            )}
                             
                             {/* Action Menu */}
                             {openActionMenuId === course.id && (
@@ -670,11 +722,13 @@ const App = () => {
                      <h3 className="text-xl font-bold text-slate-900">{t.emp_title}</h3>
                      <p className="text-slate-500 text-sm mt-1">{t.emp_subtitle}</p>
                    </div>
-                   <label className={`flex items-center gap-2 px-4 py-2.5 bg-${theme}-600 text-white rounded-xl cursor-pointer hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
-                     <FileSpreadsheet size={18} />
-                     <span className="text-sm font-medium">{t.btn_import_excel}</span>
-                     <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
-                   </label>
+                   {userRole === 'admin' && (
+                     <label className={`flex items-center gap-2 px-4 py-2.5 bg-${theme}-600 text-white rounded-xl cursor-pointer hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
+                       <FileSpreadsheet size={18} />
+                       <span className="text-sm font-medium">{t.btn_import_excel}</span>
+                       <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
+                     </label>
+                   )}
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -887,58 +941,125 @@ const App = () => {
             {/* Settings */}
              {activeTab === Tab.Settings && (
               <div className="bg-white rounded-2xl border border-slate-200 p-8">
-                 <h3 className="text-lg font-bold text-slate-900 mb-4">{t.settings_title}</h3>
+                 <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                   <Settings size={24} />
+                   {t.settings_title}
+                 </h3>
                  
-                 <div className="grid gap-6 max-w-xl">
-                   <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-2">{t.lang_select}</label>
-                     <div className="flex gap-2">
-                       <button 
-                        onClick={() => setLang('fa')} 
-                        className={`px-4 py-2 rounded-lg border ${lang === 'fa' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200'}`}
-                       >
-                         فارسی
-                       </button>
-                       <button 
-                        onClick={() => setLang('en')} 
-                        className={`px-4 py-2 rounded-lg border ${lang === 'en' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200'}`}
-                       >
-                         English
-                       </button>
-                     </div>
-                   </div>
-
-                   <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-2">{t.theme_select}</label>
-                     <div className="flex gap-2">
-                       {['blue', 'emerald', 'violet', 'rose', 'amber'].map((c) => (
-                         <button
-                           key={c}
-                           onClick={() => setTheme(c as ThemeColor)}
-                           className={`w-8 h-8 rounded-full bg-${c}-500 ring-offset-2 ${theme === c ? 'ring-2 ring-slate-400' : ''}`}
-                         />
-                       ))}
-                     </div>
-                   </div>
-
-                   <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_logo}</label>
-                     <p className="text-xs text-slate-500 mb-3">{t.settings_logo_desc}</p>
-                     <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center overflow-hidden">
-                          {companyLogo ? (
-                            <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
-                          ) : (
-                            <ImageIcon className="text-slate-400" size={24} />
-                          )}
+                 <div className="grid gap-8 max-w-2xl">
+                   
+                   {/* Organization Info Section */}
+                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                      <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+                         <Building2 size={16} />
+                         {t.settings_org_info}
+                      </h4>
+                      <div className="grid gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_company_name}</label>
+                          <input 
+                            type="text" 
+                            value={systemSettings.companyName}
+                            onChange={(e) => handleSettingsChange('companyName', e.target.value)}
+                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            disabled={userRole !== 'admin'}
+                          />
                         </div>
-                        <label className="cursor-pointer bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center gap-2">
-                           <Upload size={16} />
-                           {t.btn_upload_logo}
-                           <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                             <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_ceo_name}</label>
+                             <input 
+                               type="text" 
+                               value={systemSettings.ceoName}
+                               onChange={(e) => handleSettingsChange('ceoName', e.target.value)}
+                               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                               placeholder="e.g. Dr. Rezaei"
+                               disabled={userRole !== 'admin'}
+                             />
+                           </div>
+                           <div>
+                             <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_manager_name}</label>
+                             <input 
+                               type="text" 
+                               value={systemSettings.trainingManagerName}
+                               onChange={(e) => handleSettingsChange('trainingManagerName', e.target.value)}
+                               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                               placeholder="e.g. Eng. Kamali"
+                               disabled={userRole !== 'admin'}
+                             />
+                           </div>
+                        </div>
+                        
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_logo}</label>
+                           <p className="text-xs text-slate-500 mb-3">{t.settings_logo_desc}</p>
+                           <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 bg-white rounded-lg border border-dashed border-slate-300 flex items-center justify-center overflow-hidden">
+                                {systemSettings.logo ? (
+                                  <img src={systemSettings.logo} alt="Logo" className="w-full h-full object-contain" />
+                                ) : (
+                                  <ImageIcon className="text-slate-400" size={24} />
+                                )}
+                              </div>
+                              {userRole === 'admin' && (
+                                <label className="cursor-pointer bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center gap-2">
+                                   <Upload size={16} />
+                                   {t.btn_upload_logo}
+                                   <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                </label>
+                              )}
+                           </div>
+                        </div>
+                      </div>
+                   </div>
+
+                   {/* Appearance Section */}
+                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                     <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <UserCog size={16} />
+                        {t.settings_theme}
+                     </h4>
+                     <div className="grid gap-4">
+                       <div>
+                         <label className="block text-sm font-medium text-slate-700 mb-2">{t.lang_select}</label>
+                         <div className="flex gap-2">
+                           <button 
+                            onClick={() => setLang('fa')} 
+                            className={`px-4 py-2 rounded-lg border text-sm ${lang === 'fa' ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium' : 'bg-white border-slate-200 text-slate-600'}`}
+                           >
+                             فارسی
+                           </button>
+                           <button 
+                            onClick={() => setLang('en')} 
+                            className={`px-4 py-2 rounded-lg border text-sm ${lang === 'en' ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium' : 'bg-white border-slate-200 text-slate-600'}`}
+                           >
+                             English
+                           </button>
+                         </div>
+                       </div>
+
+                       <div>
+                         <label className="block text-sm font-medium text-slate-700 mb-2">{t.theme_select}</label>
+                         <div className="flex gap-3">
+                           {['blue', 'emerald', 'violet', 'rose', 'amber'].map((c) => (
+                             <button
+                               key={c}
+                               onClick={() => setTheme(c as ThemeColor)}
+                               className={`w-8 h-8 rounded-full bg-${c}-500 ring-offset-2 transition-transform hover:scale-110 ${theme === c ? 'ring-2 ring-slate-400 scale-110' : ''}`}
+                             />
+                           ))}
+                         </div>
+                       </div>
                      </div>
                    </div>
+                   
+                   {userRole === 'admin' && (
+                     <div className="flex gap-3 pt-4">
+                       <button className={`px-6 py-2.5 rounded-xl bg-${theme}-600 text-white font-medium hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
+                         {t.btn_save}
+                       </button>
+                     </div>
+                   )}
                  </div>
               </div>
             )}

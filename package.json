@@ -1,27 +1,43 @@
 {
-  "name": "train-pro---lms",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+  "name": "steeltrain-pro-lms",
+  "version": "1.4.0",
+  "description": "Danial Steel Training Management System",
+  "main": "electron/main.js",
+  "author": {
+    "name": "Danial Steel Co.",
+    "email": "admin@danialsteel.com"
   },
-  "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "@google/genai": "^1.34.0",
-    "lucide-react": "^0.562.0",
-    "recharts": "^3.6.0",
-    "react-markdown": "9",
-    "remark-gfm": "4",
-    "xlsx": "0.18.5"
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.danialsteel.lms",
+    "productName": "SteelPro LMS",
+    "copyright": "Copyright © 2025 Danial Steel Co.",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "files": [
+      "**/*",
+      "electron/**/*",
+      "!dist/**/*",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!tsconfig.json"
+    ]
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
   }
 }

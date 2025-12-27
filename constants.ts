@@ -1,6 +1,6 @@
 import { Course, Employee, Language } from './types';
 
-export const APP_VERSION = '1.3.1';
+export const APP_VERSION = '1.4.0';
 
 export const COURSES: Course[] = [
   { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', type: 'internal', participants: 45, completion: 78, status: 'active' },
@@ -76,7 +76,7 @@ export const DEPARTMENT_DATA = [
 
 export const TRANSLATIONS = {
   fa: {
-    app_name: 'استیل‌ترین پرو',
+    app_name: 'سامانه آموزش استیل پرو',
     dashboard: 'داشبورد مدیریتی',
     courses: 'مدیریت دوره‌ها',
     employees: 'سوابق کارکنان',
@@ -85,6 +85,8 @@ export const TRANSLATIONS = {
     settings: 'تنظیمات سیستم',
     search_placeholder: 'جستجو در سامانه...',
     role_admin: 'مدیریت کل',
+    role_training_manager: 'مسئول آموزش',
+    switch_role: 'تغییر نقش کاربری',
     logout: 'خروج از سامانه',
     department: 'واحد توسعه سرمایه انسانی',
     company: 'شرکت دانیال استیل',
@@ -152,8 +154,10 @@ export const TRANSLATIONS = {
     
     // Settings
     settings_title: 'تنظیمات سیستمی',
-    settings_org_info: 'اطلاعات سازمان',
+    settings_org_info: 'اطلاعات و مقامات سازمان',
     settings_company_name: 'نام شرکت',
+    settings_ceo_name: 'نام مدیر عامل',
+    settings_manager_name: 'نام مسئول آموزش',
     settings_email: 'ایمیل سازمانی',
     settings_notifs: 'تنظیمات اعلان‌ها',
     settings_theme: 'شخصی‌سازی ظاهر',
@@ -166,7 +170,7 @@ export const TRANSLATIONS = {
     theme_select: 'تم رنگی',
   },
   en: {
-    app_name: 'SteelTrain Pro',
+    app_name: 'SteelPro LMS',
     dashboard: 'Dashboard',
     courses: 'Courses',
     employees: 'Employees',
@@ -174,7 +178,9 @@ export const TRANSLATIONS = {
     ai: 'AI Consultant',
     settings: 'Settings',
     search_placeholder: 'Search system...',
-    role_admin: 'Super Admin',
+    role_admin: 'CEO / Admin',
+    role_training_manager: 'Training Manager',
+    switch_role: 'Switch Role',
     logout: 'Logout',
     department: 'Human Capital Development',
     company: 'Danial Steel Co.',
@@ -242,8 +248,10 @@ export const TRANSLATIONS = {
 
     // Settings
     settings_title: 'System Settings',
-    settings_org_info: 'Organization Info',
+    settings_org_info: 'Organization & Officials',
     settings_company_name: 'Company Name',
+    settings_ceo_name: 'CEO Name',
+    settings_manager_name: 'Training Manager Name',
     settings_email: 'Company Email',
     settings_notifs: 'Notification Settings',
     settings_theme: 'Appearance',
