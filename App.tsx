@@ -35,7 +35,8 @@ import {
   KeyRound, 
   FileSpreadsheet,
   UserCog,
-  ShieldCheck
+  ShieldCheck,
+  Save
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -93,13 +94,21 @@ const App = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('admin');
   
-  // Settings State
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
-    companyName: 'Danial Steel Co.',
-    ceoName: 'Dr. Rezaei',
-    trainingManagerName: 'Eng. Kamali',
-    logo: null
+  // Settings State with Persistence
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    const saved = localStorage.getItem('systemSettings');
+    return saved ? JSON.parse(saved) : {
+      companyName: 'Danial Steel Co.',
+      ceoName: '',
+      trainingManagerName: '',
+      logo: null
+    };
   });
+
+  const handleSaveSettings = () => {
+    localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
+    alert(lang === 'fa' ? 'تنظیمات با موفقیت ذخیره شد.' : 'Settings saved successfully.');
+  };
 
   // Data State
   const [coursesList, setCoursesList] = useState(COURSES);
@@ -1055,7 +1064,11 @@ const App = () => {
                    
                    {userRole === 'admin' && (
                      <div className="flex gap-3 pt-4">
-                       <button className={`px-6 py-2.5 rounded-xl bg-${theme}-600 text-white font-medium hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
+                       <button 
+                         onClick={handleSaveSettings}
+                         className={`px-6 py-2.5 rounded-xl bg-${theme}-600 text-white font-medium hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20 flex items-center gap-2`}
+                       >
+                         <Save size={18} />
                          {t.btn_save}
                        </button>
                      </div>

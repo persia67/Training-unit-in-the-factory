@@ -1,6 +1,6 @@
 import { Course, Employee, Language } from './types';
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.4.1';
 
 export const COURSES: Course[] = [
   { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', type: 'internal', participants: 45, completion: 78, status: 'active' },
@@ -76,7 +76,7 @@ export const DEPARTMENT_DATA = [
 
 export const TRANSLATIONS = {
   fa: {
-    app_name: 'سامانه آموزش استیل پرو',
+    app_name: 'سامانه آموزش پرو',
     dashboard: 'داشبورد مدیریتی',
     courses: 'مدیریت دوره‌ها',
     employees: 'سوابق کارکنان',
@@ -170,7 +170,7 @@ export const TRANSLATIONS = {
     theme_select: 'تم رنگی',
   },
   en: {
-    app_name: 'SteelPro LMS',
+    app_name: 'Pro LMS',
     dashboard: 'Dashboard',
     courses: 'Courses',
     employees: 'Employees',

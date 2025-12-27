@@ -1,5 +1,5 @@
 {
-  "name": "steeltrain-pro-lms",
+  "name": "train-pro-lms",
   "version": "1.4.0",
   "description": "Danial Steel Training Management System",
   "main": "electron/main.js",
@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.danialsteel.lms",
-    "productName": "SteelPro LMS",
+    "productName": "Pro LMS",
     "copyright": "Copyright © 2025 Danial Steel Co.",
     "directories": {
       "output": "dist"
