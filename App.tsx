@@ -10,26 +10,35 @@ import {
   Users, BookOpen, Award, TrendingUp, Download, 
   Upload, MessageSquare, FileText, Settings, 
   ChevronLeft, Search, Bell, Menu, X, Plus, Filter,
-  Bot, User, Sparkles, Mic, MicOff, StopCircle
+  Bot, User, Sparkles, Mic, MicOff, StopCircle, Lightbulb, Clock, CheckCircle, Globe, Palette
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
-  Tab, Course, Employee, Message 
+  Tab, Course, Employee, Message, Language, ThemeColor 
 } from './types';
 import { 
   COURSES, EMPLOYEES, MONTHLY_TRAINING_DATA, 
-  DEPARTMENT_DATA, SKILLS_RADAR_DATA, PERFORMANCE_DATA 
+  DEPARTMENT_DATA, SKILLS_RADAR_DATA, PERFORMANCE_DATA, TRANSLATIONS 
 } from './constants';
-import { streamGeminiResponse, analyzeDashboardData, GeminiLiveSession } from './services/geminiService';
+import { streamGeminiResponse, analyzeDashboardData, suggestTrainingCourses, GeminiLiveSession } from './services/geminiService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Dashboard);
+  const [lang, setLang] = useState<Language>('fa');
+  const [theme, setTheme] = useState<ThemeColor>('blue');
   const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const t = TRANSLATIONS[lang];
+
+  useEffect(() => {
+    document.dir = lang === 'fa' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,10 +54,9 @@ const App: React.FC = () => {
     setUserInput('');
 
     try {
-      // Add an empty assistant message to act as a buffer for streaming
       setAiMessages(prev => [...prev, { role: 'assistant', content: '' }]);
       
-      const stream = streamGeminiResponse(text, aiMessages);
+      const stream = streamGeminiResponse(text, aiMessages, lang);
       let fullContent = '';
 
       for await (const chunk of stream) {
@@ -66,11 +74,9 @@ const App: React.FC = () => {
       setAiMessages(prev => {
         const newHistory = [...prev];
         const lastMsgIndex = newHistory.length - 1;
-        const errorMessage = error.message || "خطا در دریافت پاسخ.";
+        const errorMessage = error.message || "Error";
         if (newHistory[lastMsgIndex].role === 'assistant' && !newHistory[lastMsgIndex].content) {
           newHistory[lastMsgIndex].content = errorMessage;
-        } else {
-          newHistory.push({ role: 'assistant', content: errorMessage });
         }
         return newHistory;
       });
@@ -80,24 +86,24 @@ const App: React.FC = () => {
   };
 
   const tabsConfig = [
-    { id: Tab.Dashboard, label: 'داشبورد مدیریتی', icon: TrendingUp },
-    { id: Tab.Courses, label: 'مدیریت دوره‌ها', icon: BookOpen },
-    { id: Tab.Employees, label: 'سوابق کارکنان', icon: Users },
-    { id: Tab.Reports, label: 'گزارشات و تحلیل', icon: FileText },
-    { id: Tab.AI, label: 'مشاور هوشمند', icon: MessageSquare },
-    { id: Tab.Settings, label: 'تنظیمات سیستم', icon: Settings },
+    { id: Tab.Dashboard, label: t.dashboard, icon: TrendingUp },
+    { id: Tab.Courses, label: t.courses, icon: BookOpen },
+    { id: Tab.Employees, label: t.employees, icon: Users },
+    { id: Tab.Reports, label: t.reports, icon: FileText },
+    { id: Tab.AI, label: t.ai, icon: MessageSquare },
+    { id: Tab.Settings, label: t.settings, icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex" dir="rtl">
+    <div className={`min-h-screen bg-slate-50 flex font-sans ${lang === 'en' ? 'font-[sans-serif]' : ''}`}>
       {/* Sidebar */}
-      <aside className={`bg-slate-900 text-white w-64 fixed h-full z-20 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} lg:static`}>
+      <aside className={`bg-slate-900 text-white w-64 fixed h-full z-20 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : (lang === 'fa' ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')} lg:static`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
+            <div className={`bg-${theme}-600 p-2 rounded-lg`}>
               <Award className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight">SteelTrain</span>
+            <span className="font-bold text-xl tracking-tight">{t.app_name}</span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400">
             <X size={20} />
@@ -111,7 +117,7 @@ const App: React.FC = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeTab === tab.id 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
+                  ? `bg-${theme}-600 text-white shadow-lg shadow-${theme}-900/20` 
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
@@ -124,16 +130,16 @@ const App: React.FC = () => {
         <div className="absolute bottom-8 right-6 left-6">
           <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold">
+              <div className={`w-8 h-8 rounded-full bg-${theme}-500 flex items-center justify-center text-xs font-bold`}>
                 AD
               </div>
               <div className="overflow-hidden">
-                <p className="text-xs font-semibold truncate">مدیریت کل</p>
+                <p className="text-xs font-semibold truncate">{t.role_admin}</p>
                 <p className="text-[10px] text-slate-500 truncate">admin@danialsteel.com</p>
               </div>
             </div>
             <button className="w-full text-xs text-red-400 font-medium hover:text-red-300 transition">
-              خروج از سامانه
+              {t.logout}
             </button>
           </div>
         </div>
@@ -147,24 +153,44 @@ const App: React.FC = () => {
               <Menu size={24} />
             </button>
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className={`absolute ${lang === 'fa' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4`} />
               <input 
                 type="text" 
-                placeholder="جستجو در سامانه..." 
-                className="bg-slate-100 border-none rounded-full pr-10 pl-4 py-2 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder={t.search_placeholder} 
+                className={`bg-slate-100 border-none rounded-full ${lang === 'fa' ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 text-sm w-64 focus:ring-2 focus:ring-${theme}-500 outline-none transition`}
               />
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="relative text-slate-500 hover:text-blue-600 transition p-2 bg-slate-100 rounded-full">
+            {/* Quick Toggles */}
+            <div className="hidden md:flex gap-2">
+              <button 
+                onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')}
+                className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-lg text-xs font-bold w-10"
+              >
+                {lang === 'fa' ? 'EN' : 'فا'}
+              </button>
+              <div className="flex bg-slate-50 rounded-lg p-1">
+                 {['blue', 'emerald', 'violet', 'rose', 'amber'].map((c) => (
+                   <button 
+                    key={c}
+                    onClick={() => setTheme(c as ThemeColor)}
+                    className={`w-4 h-4 rounded-full mx-0.5 ${theme === c ? 'ring-2 ring-offset-1 ring-slate-300' : ''}`}
+                    style={{ backgroundColor: `var(--color-${c}-500, ${c === 'blue' ? '#3b82f6' : c === 'emerald' ? '#10b981' : c === 'violet' ? '#8b5cf6' : c === 'rose' ? '#f43f5e' : '#f59e0b'})`}} 
+                   />
+                 ))}
+              </div>
+            </div>
+
+            <button className={`relative text-slate-500 hover:text-${theme}-600 transition p-2 bg-slate-100 rounded-full`}>
               <Bell size={20} />
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             <div className="h-8 w-px bg-slate-200"></div>
             <div className="flex items-center gap-3">
-              <div className="text-left hidden sm:block">
-                <p className="text-xs font-bold text-slate-900">شرکت دانیال استیل</p>
-                <p className="text-[10px] text-slate-500">واحد توسعه سرمایه انسانی</p>
+              <div className={`text-${lang === 'fa' ? 'left' : 'right'} hidden sm:block`}>
+                <p className="text-xs font-bold text-slate-900">{t.company}</p>
+                <p className="text-[10px] text-slate-500">{t.department}</p>
               </div>
             </div>
           </div>
@@ -172,10 +198,10 @@ const App: React.FC = () => {
 
         <main className="p-4 lg:p-8 flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
-            {activeTab === Tab.Dashboard && <DashboardView />}
-            {activeTab === Tab.Courses && <CoursesView />}
-            {activeTab === Tab.Employees && <EmployeesView />}
-            {activeTab === Tab.Reports && <ReportsView />}
+            {activeTab === Tab.Dashboard && <DashboardView lang={lang} t={t} theme={theme} />}
+            {activeTab === Tab.Courses && <CoursesView t={t} theme={theme} />}
+            {activeTab === Tab.Employees && <EmployeesView t={t} theme={theme} />}
+            {activeTab === Tab.Reports && <ReportsView t={t} theme={theme} />}
             {activeTab === Tab.AI && (
               <AIView 
                 messages={aiMessages} 
@@ -184,9 +210,20 @@ const App: React.FC = () => {
                 userInput={userInput}
                 setUserInput={setUserInput}
                 messagesEndRef={messagesEndRef}
+                t={t}
+                theme={theme}
+                lang={lang}
               />
             )}
-            {activeTab === Tab.Settings && <SettingsView />}
+            {activeTab === Tab.Settings && (
+              <SettingsView 
+                t={t} 
+                theme={theme} 
+                lang={lang} 
+                setLang={setLang} 
+                setTheme={setTheme} 
+              />
+            )}
           </div>
         </main>
       </div>
@@ -196,9 +233,11 @@ const App: React.FC = () => {
 
 /* --- Sub-Views --- */
 
-const DashboardView: React.FC = () => {
+const DashboardView: React.FC<{lang: Language, t: any, theme: ThemeColor}> = ({ lang, t, theme }) => {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [suggestedCourses, setSuggestedCourses] = useState<any[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
@@ -209,12 +248,24 @@ const DashboardView: React.FC = () => {
         skills: SKILLS_RADAR_DATA,
         performance: PERFORMANCE_DATA
       };
-      const result = await analyzeDashboardData(stats);
+      const result = await analyzeDashboardData(stats, lang);
       setAnalysis(result);
     } catch (e) {
-      setAnalysis("خطا در تحلیل داده‌ها");
+      setAnalysis("Error");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleSuggestCourses = async () => {
+    setIsSuggesting(true);
+    try {
+      const suggestions = await suggestTrainingCourses(SKILLS_RADAR_DATA, lang);
+      setSuggestedCourses(suggestions);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSuggesting(false);
     }
   };
 
@@ -222,45 +273,44 @@ const DashboardView: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">داشبورد پایش آموزش</h1>
-          <p className="text-slate-500 mt-1">خلاصه‌ی وضعیت برنامه‌های آموزشی و توسعه مهارت کارکنان</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t.dash_title}</h1>
+          <p className="text-slate-500 mt-1">{t.dash_subtitle}</p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={handleAnalyze}
             disabled={isAnalyzing}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:bg-indigo-400"
+            className={`bg-${theme}-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20 flex items-center gap-2 disabled:bg-${theme}-400`}
           >
             {isAnalyzing ? (
               <>
                 <Sparkles size={16} className="animate-spin" />
-                در حال تحلیل هوشمند...
               </>
             ) : (
               <>
                 <Sparkles size={16} />
-                تحلیل هوشمند داده‌ها
+                {t.btn_ai_analysis}
               </>
             )}
           </button>
           <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition shadow-sm">
-            تغییر بازه زمانی
+            {t.btn_time_range}
           </button>
         </div>
       </div>
 
       {analysis && (
-        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 p-6 rounded-2xl animate-in zoom-in-95 duration-500 shadow-sm relative overflow-hidden">
+        <div className={`bg-gradient-to-br from-${theme}-50 to-white border border-${theme}-100 p-6 rounded-2xl animate-in zoom-in-95 duration-500 shadow-sm relative overflow-hidden`}>
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <Bot size={120} />
           </div>
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-md">
+              <div className={`p-2 bg-${theme}-600 rounded-lg text-white shadow-md`}>
                 <Sparkles size={20} />
               </div>
-              <h3 className="font-bold text-indigo-900 text-lg">تحلیل راهبردی هوش مصنوعی</h3>
-              <button onClick={() => setAnalysis(null)} className="mr-auto text-slate-400 hover:text-slate-600"><X size={20}/></button>
+              <h3 className={`font-bold text-${theme}-900 text-lg`}>AI Strategy Analysis</h3>
+              <button onClick={() => setAnalysis(null)} className={`mr-auto text-slate-400 hover:text-slate-600 ${lang === 'en' ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}><X size={20}/></button>
             </div>
             <div className="markdown-body text-sm text-slate-700 leading-relaxed">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
@@ -272,12 +322,12 @@ const DashboardView: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'کل دوره‌های فعال', val: '۲۴', trend: '+۳ این ماه', icon: BookOpen, color: 'blue' },
-          { label: 'کل کارکنان آموزش‌دیده', val: '۱۴۳', trend: '+۱۲ نفر', icon: Users, color: 'emerald' },
-          { label: 'میانگین پیشرفت', val: '۸۱٪', trend: '+۵.۲٪ رشد', icon: TrendingUp, color: 'orange' },
-          { label: 'گواهینامه‌های صادرشده', val: '۸۷', trend: '۱۵ مورد انتظار', icon: Award, color: 'purple' },
+          { label: t.stat_active_courses, val: '24', trend: '+3', icon: BookOpen, color: theme },
+          { label: t.stat_trained_employees, val: '143', trend: '+12', icon: Users, color: 'emerald' },
+          { label: t.stat_progress, val: '81%', trend: '+5.2%', icon: TrendingUp, color: 'orange' },
+          { label: t.stat_certificates, val: '87', trend: '15', icon: Award, color: 'purple' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:border-blue-200 transition">
+          <div key={i} className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:border-${theme}-200 transition`}>
             <div>
               <p className="text-slate-500 text-xs font-medium mb-1">{stat.label}</p>
               <h3 className="text-2xl font-bold text-slate-900">{stat.val}</h3>
@@ -296,8 +346,8 @@ const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
           <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <TrendingUp className="text-blue-600" size={20} />
-            روند آموزش‌های ماهانه
+            <TrendingUp className={`text-${theme}-600`} size={20} />
+            {t.chart_monthly}
           </h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -307,15 +357,15 @@ const DashboardView: React.FC = () => {
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
                 <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
                 <Legend verticalAlign="top" height={36}/>
-                <Line type="monotone" dataKey="courses" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} name="تعداد دوره" />
-                <Line type="monotone" dataKey="participants" stroke="#10b981" strokeWidth={3} dot={{r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} name="نفر-ساعت" />
+                <Line type="monotone" dataKey="courses" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} />
+                <Line type="monotone" dataKey="participants" stroke="#10b981" strokeWidth={3} dot={{r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">توزیع واحدی آموزش‌ها</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-6">{t.chart_dist}</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -338,15 +388,15 @@ const DashboardView: React.FC = () => {
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">پروفایل مهارتی سازمان</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-6">{t.chart_skills}</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={SKILLS_RADAR_DATA}>
                 <PolarGrid stroke="#e2e8f0" />
                 <PolarAngleAxis dataKey="skill" tick={{fontSize: 12, fill: '#64748b'}} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} axisLine={false} tick={false} />
-                <Radar name="وضعیت فعلی" dataKey="current" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-                <Radar name="هدف سالانه" dataKey="target" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                <Radar name="Current" dataKey="current" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                <Radar name="Target" dataKey="target" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
                 <Tooltip />
                 <Legend />
               </RadarChart>
@@ -355,7 +405,7 @@ const DashboardView: React.FC = () => {
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">مقایسه عملکرد و بودجه</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-6">{t.chart_perf}</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={PERFORMANCE_DATA}>
@@ -364,18 +414,91 @@ const DashboardView: React.FC = () => {
                 <YAxis axisLine={false} tickLine={false} />
                 <Tooltip cursor={{fill: '#f8fafc'}} />
                 <Legend />
-                <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} name="شاخص اثربخشی" />
-                <Bar dataKey="budget" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="تخصیص بودجه" />
+                <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="budget" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
+
+      {/* AI Suggestions Section */}
+      <div className="bg-slate-900 rounded-3xl shadow-lg shadow-slate-900/10 overflow-hidden text-white p-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+           <div>
+              <div className="flex items-center gap-3 mb-2">
+                 <div className={`p-2 bg-${theme}-500 rounded-lg text-white`}>
+                   <Lightbulb size={24} />
+                 </div>
+                 <h2 className="text-2xl font-bold">AI Course Suggestions</h2>
+              </div>
+              <p className="text-slate-400 text-sm">Based on Skill Gap Analysis</p>
+           </div>
+           
+           <button 
+             onClick={handleSuggestCourses}
+             disabled={isSuggesting}
+             className={`bg-${theme}-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-${theme}-600 transition shadow-lg shadow-${theme}-500/20 flex items-center gap-2 disabled:bg-${theme}-700 disabled:opacity-70`}
+           >
+             {isSuggesting ? (
+               <>
+                 <Sparkles size={18} className="animate-spin" />
+               </>
+             ) : (
+               <>
+                 <Sparkles size={18} />
+                 Generate New
+               </>
+             )}
+           </button>
+        </div>
+        
+        {suggestedCourses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-bottom-6 duration-700">
+            {suggestedCourses.map((course, idx) => (
+              <div key={idx} className={`bg-slate-800 border border-slate-700 rounded-2xl p-6 hover:border-${theme}-500/50 transition group relative overflow-hidden`}>
+                <div className={`absolute top-0 right-0 w-24 h-24 bg-${theme}-500/10 rounded-bl-full -mr-4 -mt-4 transition group-hover:bg-${theme}-500/20`}></div>
+                
+                <div className="flex justify-between items-start mb-4">
+                   <span className="px-3 py-1 bg-slate-700 rounded-full text-xs font-bold text-slate-300 border border-slate-600">
+                     {course.targetSkill}
+                   </span>
+                   {course.priority === 'High' && (
+                     <span className="flex items-center gap-1 text-xs font-bold text-red-400">
+                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                       High Priority
+                     </span>
+                   )}
+                </div>
+                
+                <h3 className={`text-lg font-bold text-white mb-2 group-hover:text-${theme}-400 transition`}>{course.title}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">{course.description}</p>
+                
+                <div className="flex items-center justify-between border-t border-slate-700 pt-4 mt-auto">
+                   <div className="flex items-center gap-2 text-slate-500 text-xs">
+                     <Clock size={14} />
+                     {course.duration}
+                   </div>
+                   <button className={`flex items-center gap-1 text-sm font-bold text-${theme}-500 hover:text-${theme}-400 transition`}>
+                     Add
+                     <Plus size={16} />
+                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700">
+             <Lightbulb size={48} className="mx-auto text-slate-600 mb-4 opacity-50" />
+             <p className="text-slate-400">Click generate to receive AI recommendations.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-const CoursesView: React.FC = () => {
+const CoursesView: React.FC<{t: any, theme: ThemeColor}> = ({ t, theme }) => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
 
   const filteredCourses = COURSES.filter(course => {
@@ -384,9 +507,9 @@ const CoursesView: React.FC = () => {
   });
 
   const filterOptions = [
-    { id: 'all', label: 'همه دوره‌ها', count: COURSES.length },
-    { id: 'active', label: 'در حال برگزاری', count: COURSES.filter(c => c.status === 'active').length },
-    { id: 'completed', label: 'تکمیل شده', count: COURSES.filter(c => c.status === 'completed').length },
+    { id: 'all', label: t.filter_all, count: COURSES.length },
+    { id: 'active', label: t.filter_active, count: COURSES.filter(c => c.status === 'active').length },
+    { id: 'completed', label: t.filter_completed, count: COURSES.filter(c => c.status === 'completed').length },
   ];
 
   return (
@@ -394,12 +517,12 @@ const CoursesView: React.FC = () => {
       <div className="p-8 border-b border-slate-100">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">مدیریت دوره‌های آموزشی</h2>
-            <p className="text-slate-500 text-sm mt-1">لیست دوره‌های تخصصی، عمومی و ایمنی شرکت</p>
+            <h2 className="text-xl font-bold text-slate-900">{t.course_manage_title}</h2>
+            <p className="text-slate-500 text-sm mt-1">{t.course_manage_subtitle}</p>
           </div>
-          <button className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-500/20 font-medium whitespace-nowrap">
+          <button className={`flex items-center gap-2 bg-${theme}-600 text-white px-6 py-2.5 rounded-xl hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20 font-medium whitespace-nowrap`}>
             <Plus size={18} />
-            تعریف دوره جدید
+            {t.btn_new_course}
           </button>
         </div>
 
@@ -407,7 +530,7 @@ const CoursesView: React.FC = () => {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 text-slate-400 ml-2">
             <Filter size={16} />
-            <span className="text-xs font-bold uppercase tracking-wider">فیلتر وضعیت:</span>
+            <span className="text-xs font-bold uppercase tracking-wider">{t.filter_status}</span>
           </div>
           <div className="flex p-1 bg-slate-100 rounded-2xl">
             {filterOptions.map((option) => (
@@ -416,13 +539,13 @@ const CoursesView: React.FC = () => {
                 onClick={() => setStatusFilter(option.id as any)}
                 className={`relative px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-2 ${
                   statusFilter === option.id 
-                    ? 'bg-white text-blue-600 shadow-sm' 
+                    ? `bg-white text-${theme}-600 shadow-sm` 
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 {option.label}
                 <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${
-                  statusFilter === option.id ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-500'
+                  statusFilter === option.id ? `bg-${theme}-50 text-${theme}-600` : 'bg-slate-200 text-slate-500'
                 }`}>
                   {option.count}
                 </span>
@@ -437,11 +560,11 @@ const CoursesView: React.FC = () => {
           <table className="w-full text-right">
             <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
               <tr>
-                <th className="px-8 py-5">نام و شناسه دوره</th>
-                <th className="px-8 py-5">تعداد فراگیران</th>
-                <th className="px-8 py-5">درصد پیشرفت محتوا</th>
-                <th className="px-8 py-5">وضعیت</th>
-                <th className="px-8 py-5">مدیریت</th>
+                <th className="px-8 py-5">{t.col_course_name}</th>
+                <th className="px-8 py-5">{t.col_participants}</th>
+                <th className="px-8 py-5">{t.col_progress}</th>
+                <th className="px-8 py-5">{t.col_status}</th>
+                <th className="px-8 py-5">{t.col_actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -449,16 +572,16 @@ const CoursesView: React.FC = () => {
                 <tr key={course.id} className="hover:bg-slate-50/80 transition group animate-in fade-in slide-in-from-right-2 duration-300">
                   <td className="px-8 py-5">
                     <div>
-                      <p className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition">{course.name}</p>
+                      <p className={`text-sm font-bold text-slate-900 group-hover:text-${theme}-600 transition`}>{course.name}</p>
                       <p className="text-[10px] text-slate-400 mt-1">ID: ST-{200 + course.id}</p>
                     </div>
                   </td>
-                  <td className="px-8 py-5 text-sm text-slate-600 font-medium">{course.participants} نفر</td>
+                  <td className="px-8 py-5 text-sm text-slate-600 font-medium">{course.participants}</td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4 max-w-[200px]">
                       <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                         <div 
-                          className={`h-full rounded-full transition-all duration-1000 ${course.completion === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`}
+                          className={`h-full rounded-full transition-all duration-1000 ${course.completion === 100 ? 'bg-emerald-500' : `bg-${theme}-600`}`}
                           style={{ width: `${course.completion}%` }}
                         />
                       </div>
@@ -468,17 +591,17 @@ const CoursesView: React.FC = () => {
                   <td className="px-8 py-5">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold ${
                       course.status === 'active' 
-                        ? 'bg-blue-50 text-blue-700' 
+                        ? `bg-${theme}-50 text-${theme}-700` 
                         : 'bg-emerald-50 text-emerald-700'
                     }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${course.status === 'active' ? 'bg-blue-600 animate-pulse' : 'bg-emerald-600'}`}></span>
-                      {course.status === 'active' ? 'در حال برگزاری' : 'تکمیل شده'}
+                      <span className={`w-1.5 h-1.5 rounded-full ${course.status === 'active' ? `bg-${theme}-600 animate-pulse` : 'bg-emerald-600'}`}></span>
+                      {course.status === 'active' ? 'Active' : 'Completed'}
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <button className="text-slate-400 hover:text-blue-600 transition flex items-center gap-1 text-xs font-bold">
-                      مشاهده جزئیات
-                      <ChevronLeft size={14} />
+                    <button className={`text-slate-400 hover:text-${theme}-600 transition flex items-center gap-1 text-xs font-bold`}>
+                      {t.view_details}
+                      <ChevronLeft size={14} className="rtl:rotate-0 ltr:rotate-180" />
                     </button>
                   </td>
                 </tr>
@@ -488,7 +611,7 @@ const CoursesView: React.FC = () => {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <Filter size={48} className="mb-4 opacity-20" />
-            <p className="text-sm font-medium">هیچ دوره‌ای با این وضعیت یافت نشد.</p>
+            <p className="text-sm font-medium">No courses found.</p>
           </div>
         )}
       </div>
@@ -496,26 +619,26 @@ const CoursesView: React.FC = () => {
   );
 };
 
-const EmployeesView: React.FC = () => (
+const EmployeesView: React.FC<{t: any, theme: ThemeColor}> = ({ t, theme }) => (
   <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
     <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-      <h2 className="text-xl font-bold text-slate-900">بانک اطلاعاتی کارکنان</h2>
+      <h2 className="text-xl font-bold text-slate-900">Employee Database</h2>
       <div className="flex gap-2">
         <button className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-200 transition">
           <Upload size={18} />
-          درون‌ریزی از اکسل
+          Import
         </button>
       </div>
     </div>
     <div className="overflow-x-auto">
-      <table className="w-full text-right">
+      <table className="w-full text-right ltr:text-left">
         <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
           <tr>
-            <th className="px-8 py-5">مشخصات فردی</th>
-            <th className="px-8 py-5">واحد سازمانی</th>
-            <th className="px-8 py-5">دوره‌های گذرانده</th>
-            <th className="px-8 py-5">آخرین فعالیت</th>
-            <th className="px-8 py-5">عملیات</th>
+            <th className="px-8 py-5">Employee</th>
+            <th className="px-8 py-5">Department</th>
+            <th className="px-8 py-5">Completed</th>
+            <th className="px-8 py-5">Last Activity</th>
+            <th className="px-8 py-5">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -528,21 +651,21 @@ const EmployeesView: React.FC = () => (
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-900">{employee.name}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">کد پرسنلی: {1000 + employee.id}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">ID: {1000 + employee.id}</p>
                   </div>
                 </div>
               </td>
               <td className="px-8 py-5 text-sm text-slate-600 font-medium">{employee.department}</td>
               <td className="px-8 py-5">
                 <div className="flex items-center gap-2">
-                  <Award size={14} className="text-blue-500" />
+                  <Award size={14} className={`text-${theme}-500`} />
                   <span className="text-sm font-bold text-slate-900">{employee.coursesCompleted}</span>
-                  <span className="text-xs text-slate-400">گواهینامه</span>
+                  <span className="text-xs text-slate-400">Cert.</span>
                 </div>
               </td>
               <td className="px-8 py-5 text-sm text-slate-500 font-medium tabular-nums">{employee.lastTraining}</td>
               <td className="px-8 py-5">
-                <button className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition">
+                <button className={`bg-${theme}-50 text-${theme}-600 p-2 rounded-lg hover:bg-${theme}-600 hover:text-white transition`}>
                   <FileText size={18} />
                 </button>
               </td>
@@ -554,25 +677,25 @@ const EmployeesView: React.FC = () => (
   </div>
 );
 
-const ReportsView: React.FC = () => (
+const ReportsView: React.FC<{t: any, theme: ThemeColor}> = ({ t, theme }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-700">
     <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+        <div className={`p-3 bg-${theme}-50 text-${theme}-600 rounded-2xl`}>
           <Download size={24} />
         </div>
-        <h3 className="text-xl font-bold text-slate-900">خروجی‌های استاندارد</h3>
+        <h3 className="text-xl font-bold text-slate-900">{t.reports} (Standard)</h3>
       </div>
       <div className="space-y-4">
         {[
-          { title: 'گزارش اثربخشی سالانه (Kirkpatrick)', color: 'blue' },
-          { title: 'لیست ریز نمرات و حضور و غیاب نورد', color: 'emerald' },
-          { title: 'تحلیل شکاف مهارتی واحد فنی', color: 'orange' },
-          { title: 'صورت‌هزینه آموزش و بازگشت سرمایه (ROI)', color: 'purple' },
+          { title: 'Annual Effectiveness Report (Kirkpatrick)', color: 'blue' },
+          { title: 'Detailed Attendance & Score List', color: 'emerald' },
+          { title: 'Technical Skill Gap Analysis', color: 'orange' },
+          { title: 'Training ROI Statement', color: 'purple' },
         ].map((item, i) => (
           <button key={i} className="w-full flex items-center justify-between p-5 bg-slate-50 hover:bg-white hover:shadow-md border border-transparent hover:border-slate-100 rounded-2xl transition group">
             <span className="text-slate-700 font-medium text-sm">{item.title}</span>
-            <ChevronLeft className="text-slate-300 group-hover:text-blue-600 transition" size={18} />
+            <ChevronLeft className={`text-slate-300 group-hover:text-${theme}-600 transition rtl:rotate-0 ltr:rotate-180`} size={18} />
           </button>
         ))}
       </div>
@@ -583,27 +706,27 @@ const ReportsView: React.FC = () => (
         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
           <Plus size={24} />
         </div>
-        <h3 className="text-xl font-bold text-slate-900">گزارش‌ساز سفارشی</h3>
+        <h3 className="text-xl font-bold text-slate-900">Custom Report Builder</h3>
       </div>
       <div className="space-y-6">
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">فیلتر واحد سازمانی</label>
-          <select className="w-full bg-slate-50 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-            <option>همه واحدها</option>
-            <option>تولید نورد</option>
-            <option>کنترل کیفی</option>
-            <option>فنی و تعمیرات</option>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Department Filter</label>
+          <select className={`w-full bg-slate-50 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-${theme}-500 outline-none`}>
+            <option>All Departments</option>
+            <option>Production</option>
+            <option>Quality</option>
+            <option>Technical</option>
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">بازه زمانی گزارش</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Time Range</label>
           <div className="grid grid-cols-2 gap-4">
             <input type="date" className="bg-slate-50 border-none rounded-xl p-4 text-sm outline-none" />
             <input type="date" className="bg-slate-50 border-none rounded-xl p-4 text-sm outline-none" />
           </div>
         </div>
         <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition shadow-xl shadow-slate-900/10">
-          ایجاد و پیش‌نمایش گزارش
+          Generate & Preview
         </button>
       </div>
     </div>
@@ -617,6 +740,9 @@ interface AIViewProps {
   userInput: string;
   setUserInput: (s: string) => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  t: any;
+  theme: ThemeColor;
+  lang: Language;
 }
 
 // Markdown component configuration
@@ -641,14 +767,14 @@ const markdownComponents = {
   a: ({href, children}: any) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a>,
 };
 
-const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput, setUserInput, messagesEndRef }) => {
+const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput, setUserInput, messagesEndRef, t, theme, lang }) => {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
 
   useEffect(() => {
     if (isVoiceMode) {
       const startSession = async () => {
-        liveSessionRef.current = new GeminiLiveSession();
+        liveSessionRef.current = new GeminiLiveSession(lang);
         await liveSessionRef.current.start(() => setIsVoiceMode(false));
       };
       startSession();
@@ -660,14 +786,14 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
     return () => {
       liveSessionRef.current?.stop();
     };
-  }, [isVoiceMode]);
+  }, [isVoiceMode, lang]);
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-slate-100 h-[calc(100vh-180px)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
       <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-colors duration-500 ${isVoiceMode ? 'bg-red-500 shadow-red-500/30' : 'bg-gradient-to-br from-blue-600 to-indigo-600 shadow-blue-500/30'}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-colors duration-500 ${isVoiceMode ? 'bg-red-500 shadow-red-500/30' : `bg-gradient-to-br from-${theme}-600 to-${theme}-800 shadow-${theme}-500/30`}`}>
               {isVoiceMode ? <Mic size={24} className="text-white animate-pulse" /> : <Sparkles size={24} className="text-white" />}
             </div>
             <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
@@ -676,9 +802,9 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
             </span>
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 leading-tight">مشاور هوشمند آموزش</h2>
+            <h2 className="text-lg font-bold text-slate-900 leading-tight">{t.ai_title}</h2>
             <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider flex items-center gap-1">
-              {isVoiceMode ? 'Gemini Live • Voice Mode' : 'Powered by Gemini 3 Pro'}
+              {isVoiceMode ? 'Gemini Live • Voice Mode' : t.ai_subtitle}
             </p>
           </div>
         </div>
@@ -694,12 +820,12 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
              {isVoiceMode ? (
                <>
                  <StopCircle size={18} />
-                 پایان مکالمه
+                 {t.btn_stop_voice}
                </>
              ) : (
                <>
                  <Mic size={18} />
-                 گفتگوی صوتی
+                 {t.btn_voice_mode}
                </>
              )}
            </button>
@@ -710,7 +836,7 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
       {isVoiceMode ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/50 relative overflow-hidden">
            <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-              <div className="w-96 h-96 bg-blue-400 rounded-full filter blur-3xl animate-pulse"></div>
+              <div className={`w-96 h-96 bg-${theme}-400 rounded-full filter blur-3xl animate-pulse`}></div>
            </div>
            
            <div className="z-10 text-center space-y-8 animate-in fade-in zoom-in duration-700">
@@ -723,8 +849,8 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
               </div>
               
               <div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">در حال گوش دادن...</h3>
-                <p className="text-slate-500">می‌توانید به صورت طبیعی با هوش مصنوعی صحبت کنید.</p>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">{t.listening}</h3>
+                <p className="text-slate-500">{t.listening_desc}</p>
               </div>
 
               <div className="flex gap-2 justify-center">
@@ -741,23 +867,27 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
           <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/50 scroll-smooth">
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
-                <div className="w-24 h-24 bg-white rounded-full shadow-lg border-4 border-blue-50 flex items-center justify-center mb-6 animate-in zoom-in duration-500">
-                  <Bot size={48} className="text-blue-600" />
+                <div className={`w-24 h-24 bg-white rounded-full shadow-lg border-4 border-${theme}-50 flex items-center justify-center mb-6 animate-in zoom-in duration-500`}>
+                  <Bot size={48} className={`text-${theme}-600`} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">چگونه می‌توانم به دانیال استیل کمک کنم؟</h3>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{t.ai_welcome_title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed mb-8 px-4">
-                  من با تحلیل داده‌های آموزشی و استانداردهای صنعت فولاد، آماده پاسخگویی به سوالات شما هستم.
+                  {t.ai_welcome_desc}
                 </p>
                 <div className="grid grid-cols-1 gap-2 w-full">
-                  {[
+                  {(lang === 'fa' ? [
                     'تدوین سرفصل دوره "ریخته‌گری مداوم"',
                     'تحلیل شاخص اثربخشی آموزش در سال ۱۴۰۳',
                     'پیشنهاد مسیر شغلی برای تکنسین‌های نت'
-                  ].map((q, i) => (
+                  ] : [
+                    'Create syllabus for "Continuous Casting" course',
+                    'Analyze training effectiveness for 2024',
+                    'Suggest career path for maintenance technicians'
+                  ]).map((q, i) => (
                     <button 
                       key={i}
                       onClick={() => onSend(q)}
-                      className="text-right p-4 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm hover:shadow-md transform hover:-translate-y-0.5 duration-200"
+                      className={`text-${lang === 'fa' ? 'right' : 'left'} p-4 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:border-${theme}-400 hover:bg-${theme}-50 hover:text-${theme}-700 transition shadow-sm hover:shadow-md transform hover:-translate-y-0.5 duration-200`}
                     >
                       {q}
                     </button>
@@ -774,7 +904,7 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
                 <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                   <div className={`flex gap-3 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                      isUser ? 'bg-slate-200 text-slate-600' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                      isUser ? 'bg-slate-200 text-slate-600' : `bg-${theme}-600 text-white shadow-lg shadow-${theme}-500/30`
                     }`}>
                       {isUser ? <User size={16} /> : <Bot size={16} />}
                     </div>
@@ -795,7 +925,7 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
                             {msg.content}
                           </ReactMarkdown>
                           {isLoading && isLast && (
-                             <span className="inline-block w-2 h-4 bg-blue-600 ml-1 animate-pulse align-middle rounded-full"></span>
+                             <span className={`inline-block w-2 h-4 bg-${theme}-600 ml-1 animate-pulse align-middle rounded-full`}></span>
                           )}
                         </div>
                       )}
@@ -808,13 +938,13 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
             {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex gap-3">
-                   <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/30">
+                   <div className={`w-8 h-8 rounded-full bg-${theme}-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-${theme}-500/30`}>
                       <Bot size={16} />
                     </div>
                     <div className="bg-white border border-slate-200 p-5 rounded-3xl rounded-tl-none shadow-sm flex items-center gap-2">
-                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
-                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
-                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                      <span className={`w-2 h-2 bg-${theme}-600 rounded-full animate-bounce`} style={{animationDelay: '0ms'}}></span>
+                      <span className={`w-2 h-2 bg-${theme}-600 rounded-full animate-bounce`} style={{animationDelay: '150ms'}}></span>
+                      <span className={`w-2 h-2 bg-${theme}-600 rounded-full animate-bounce`} style={{animationDelay: '300ms'}}></span>
                     </div>
                 </div>
               </div>
@@ -823,21 +953,21 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
           </div>
 
           <div className="p-6 bg-white border-t border-slate-100">
-            <div className="flex gap-4 items-center bg-slate-50 p-2 pr-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition shadow-inner">
+            <div className={`flex gap-4 items-center bg-slate-50 p-2 ${lang === 'fa' ? 'pr-6' : 'pl-6'} rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-${theme}-500 transition shadow-inner`}>
               <input 
                 type="text" 
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && onSend(userInput)}
-                placeholder="سوال خود را اینجا بنویسید..." 
+                placeholder={t.input_placeholder}
                 className="flex-1 bg-transparent border-none outline-none text-sm font-medium py-2"
               />
               <button 
                 onClick={() => onSend(userInput)}
                 disabled={isLoading || !userInput.trim()}
-                className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-500/40 disabled:bg-slate-300 disabled:shadow-none"
+                className={`bg-${theme}-600 text-white p-3 rounded-xl hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/40 disabled:bg-slate-300 disabled:shadow-none`}
               >
-                <ChevronLeft className="rotate-180" size={20} />
+                <ChevronLeft className={`rtl:rotate-180 ltr:rotate-0`} size={20} />
               </button>
             </div>
           </div>
@@ -847,50 +977,61 @@ const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput,
   );
 };
 
-const SettingsView: React.FC = () => (
+const SettingsView: React.FC<{t: any, theme: ThemeColor, lang: Language, setLang: (l: Language) => void, setTheme: (t: ThemeColor) => void}> = ({ t, theme, lang, setLang, setTheme }) => (
   <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 max-w-3xl animate-in fade-in duration-500">
-    <h2 className="text-2xl font-bold text-slate-900 mb-8">تنظیمات سیستمی</h2>
+    <h2 className="text-2xl font-bold text-slate-900 mb-8">{t.settings_title}</h2>
     
     <div className="space-y-10">
       <section>
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">اطلاعات سازمان</h3>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">{t.settings_org_info}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-2">نام شرکت</label>
-            <input type="text" defaultValue="شرکت دانیال استیل" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
+            <label className="block text-xs font-bold text-slate-500 mb-2">{t.settings_company_name}</label>
+            <input type="text" defaultValue="Danial Steel Co." className={`w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-${theme}-500 transition`} />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-2">ایمیل سازمانی</label>
-            <input type="email" defaultValue="hr@danialsteel.com" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
+            <label className="block text-xs font-bold text-slate-500 mb-2">{t.settings_email}</label>
+            <input type="email" defaultValue="hr@danialsteel.com" className={`w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-${theme}-500 transition`} />
           </div>
         </div>
       </section>
 
       <section>
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">تنظیمات اعلان‌ها</h3>
-        <div className="space-y-4">
-          {[
-            { label: 'اعلان شروع دوره‌های جدید به کارکنان', default: true },
-            { label: 'یادآوری اتمام مهلت آزمون‌ها', default: true },
-            { label: 'گزارش هفتگی مدیریت به ایمیل مدیرعامل', default: false },
-          ].map((item, i) => (
-            <label key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer hover:bg-slate-100 transition group">
-              <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition">{item.label}</span>
-              <div className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" defaultChecked={item.default} className="sr-only peer" />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">{t.settings_theme}</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-3">{t.lang_select}</label>
+              <div className="flex gap-2">
+                <button onClick={() => setLang('fa')} className={`flex-1 p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 ${lang === 'fa' ? `border-${theme}-500 bg-${theme}-50 text-${theme}-600` : 'border-slate-200 hover:bg-slate-50'}`}>
+                   <span className="text-lg">🇮🇷</span> فارسی
+                </button>
+                <button onClick={() => setLang('en')} className={`flex-1 p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 ${lang === 'en' ? `border-${theme}-500 bg-${theme}-50 text-${theme}-600` : 'border-slate-200 hover:bg-slate-50'}`}>
+                   <span className="text-lg">🇬🇧</span> English
+                </button>
               </div>
-            </label>
-          ))}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-3">{t.theme_select}</label>
+              <div className="flex gap-3">
+                 {['blue', 'emerald', 'violet', 'rose', 'amber'].map((c) => (
+                   <button 
+                    key={c}
+                    onClick={() => setTheme(c as ThemeColor)}
+                    className={`w-10 h-10 rounded-full ${theme === c ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-105'} transition-all`}
+                    style={{ backgroundColor: `var(--color-${c}-500, ${c === 'blue' ? '#3b82f6' : c === 'emerald' ? '#10b981' : c === 'violet' ? '#8b5cf6' : c === 'rose' ? '#f43f5e' : '#f59e0b'})`}} 
+                   />
+                 ))}
+              </div>
+            </div>
         </div>
       </section>
 
       <div className="flex gap-4 pt-4">
-        <button className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition shadow-xl shadow-blue-500/20">
-          ذخیره تغییرات پیکربندی
+        <button className={`flex-1 bg-${theme}-600 text-white py-4 rounded-2xl font-bold hover:bg-${theme}-700 transition shadow-xl shadow-${theme}-500/20`}>
+          {t.btn_save}
         </button>
         <button className="px-8 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition">
-          انصراف
+          {t.btn_cancel}
         </button>
       </div>
     </div>

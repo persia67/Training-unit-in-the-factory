@@ -1,32 +1,32 @@
 
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
-import { Message } from "../types";
+import { GoogleGenAI, LiveServerMessage, Modality, Type } from "@google/genai";
+import { Message, Language } from "../types";
 
-const SYSTEM_INSTRUCTION = `
+const SYSTEM_INSTRUCTION_FA = `
 شما یک مشاور متخصص و ارشد آموزش و توسعه منابع انسانی در صنعت فولاد هستید.
 نام شرکت: "دانیال استیل" (تولیدکننده مقاطع فولادی).
-وظایف شما:
-1. مشاوره تخصصی در طراحی مسیرهای یادگیری برای اپراتورهای خط تولید، تکنیسین‌ها و مدیران.
-2. تولید سرفصل‌های آموزشی مطابق با استانداردهای مدرن صنعت فولاد.
-3. تحلیل نیازهای آموزشی و ارائه راهکارهای بهبود عملکرد.
-4. پاسخ به سوالات فنی و مدیریتی حوزه آموزش در کارخانجات صنعتی.
-
-لطفا همیشه به زبان فارسی محترمانه، فنی و دقیق پاسخ دهید.
-پاسخ‌ها را با فرمت Markdown ارسال کنید تا خوانایی بهتری داشته باشند (از لیست‌ها، بولد، جداول و بلوک‌های کد استفاده کنید).
+همیشه به زبان فارسی پاسخ دهید.
 `;
 
-export const streamGeminiResponse = async function* (userMessage: string, history: Message[]) {
+const SYSTEM_INSTRUCTION_EN = `
+You are a senior expert consultant in training and human resources development in the steel industry.
+Company Name: "Danial Steel" (Steel sections manufacturer).
+Always respond in English.
+`;
+
+const getSystemInstruction = (lang: Language) => lang === 'fa' ? SYSTEM_INSTRUCTION_FA : SYSTEM_INSTRUCTION_EN;
+
+export const streamGeminiResponse = async function* (userMessage: string, history: Message[], lang: Language = 'fa') {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     
-    // Upgraded to gemini-3-pro-preview for complex reasoning in chat
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-pro-preview',
       contents: [
         { role: 'user', parts: [{ text: userMessage }] }
       ],
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: getSystemInstruction(lang),
         temperature: 0.7,
         topP: 0.9,
       }
@@ -37,23 +37,23 @@ export const streamGeminiResponse = async function* (userMessage: string, histor
     }
   } catch (error) {
     console.error("Gemini API Error:", error);
-    throw new Error("خطا در ارتباط با هوش مصنوعی. لطفا اتصال خود را چک کنید.");
+    throw new Error(lang === 'fa' ? "خطا در ارتباط با هوش مصنوعی." : "Error connecting to AI.");
   }
 };
 
-export const analyzeDashboardData = async (stats: any) => {
+export const analyzeDashboardData = async (stats: any, lang: Language = 'fa') => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-    
-    // Using gemini-3-flash-preview for fast analysis
+    const prompt = lang === 'fa' 
+      ? `به عنوان مشاور ارشد آموزش، داده‌های زیر را تحلیل کن و ۳ نقطه قوت و ۳ زمینه قابل بهبود را خلاصه بگو. داده‌ها: ${JSON.stringify(stats)}`
+      : `As a senior training consultant, analyze the following data and summarize 3 strengths and 3 areas for improvement. Data: ${JSON.stringify(stats)}`;
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: [
         { 
           role: 'user', 
-          parts: [{ 
-            text: `به عنوان مشاور ارشد آموزش، این داده‌های آماری ماهانه واحد آموزش را تحلیل کن و ۳ نقطه قوت و ۳ زمینه قابل بهبود را به صورت خلاصه و مدیریتی بنویس. داده‌ها: ${JSON.stringify(stats)}` 
-          }] 
+          parts: [{ text: prompt }] 
         }
       ],
       config: {
@@ -61,10 +61,53 @@ export const analyzeDashboardData = async (stats: any) => {
       }
     });
 
-    return response.text || "تحلیل در دسترس نیست.";
+    return response.text || (lang === 'fa' ? "تحلیل در دسترس نیست." : "Analysis not available.");
   } catch (error) {
     console.error("Dashboard Analysis Error:", error);
-    throw new Error("خطا در تحلیل داده‌ها.");
+    throw new Error("Analysis Error.");
+  }
+};
+
+export const suggestTrainingCourses = async (skillData: any, lang: Language = 'fa') => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    
+    const prompt = lang === 'fa'
+      ? `با توجه به داده‌های زیر (مهارت فعلی vs هدف)، ۳ دوره آموزشی اولویت‌دار پیشنهاد بده. خروجی فقط JSON.`
+      : `Based on the following skill gap data (current vs target), suggest 3 priority training courses. Output JSON only.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          role: 'user',
+          parts: [{
+            text: `${prompt} Data: ${JSON.stringify(skillData)}`
+          }]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              targetSkill: { type: Type.STRING },
+              description: { type: Type.STRING },
+              priority: { type: Type.STRING, enum: ["High", "Medium"] },
+              duration: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    console.error("Course Suggestion Error:", error);
+    throw new Error("Error generating suggestions.");
   }
 };
 
@@ -78,6 +121,11 @@ export class GeminiLiveSession {
   private scriptProcessor: ScriptProcessorNode | null = null;
   private nextStartTime = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private lang: Language;
+
+  constructor(lang: Language = 'fa') {
+    this.lang = lang;
+  }
 
   async start(onClose: () => void) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -97,11 +145,10 @@ export class GeminiLiveSession {
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
         },
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: getSystemInstruction(this.lang),
       },
       callbacks: {
         onopen: () => {
-          console.log("Live session started");
           this.startAudioInput(stream);
         },
         onmessage: async (message: LiveServerMessage) => {
@@ -129,14 +176,8 @@ export class GeminiLiveSession {
             this.sources.add(source);
           }
         },
-        onclose: () => {
-          console.log("Live session closed");
-          onClose();
-        },
-        onerror: (err) => {
-          console.error("Live session error:", err);
-          onClose();
-        }
+        onclose: () => onClose(),
+        onerror: (err) => onClose()
       }
     });
   }

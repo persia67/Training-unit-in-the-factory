@@ -28,3 +28,6 @@ export enum Tab {
   AI = 'ai',
   Settings = 'settings'
 }
+
+export type Language = 'fa' | 'en';
+export type ThemeColor = 'blue' | 'emerald' | 'violet' | 'rose' | 'amber';
