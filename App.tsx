@@ -36,7 +36,8 @@ import {
   FileSpreadsheet,
   UserCog,
   ShieldCheck,
-  Save
+  Save,
+  Cloud
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -89,8 +90,9 @@ const SimplePieChart = ({ data }: { data: any[] }) => (
 
 const App = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Dashboard);
-  const [lang, setLang] = useState<Language>('fa');
-  const [theme, setTheme] = useState<ThemeColor>('blue');
+  // Load initial state from local storage
+  const [lang, setLang] = useState<Language>(() => (localStorage.getItem('app_lang') as Language) || 'fa');
+  const [theme, setTheme] = useState<ThemeColor>(() => (localStorage.getItem('app_theme') as ThemeColor) || 'blue');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('admin');
   
@@ -105,10 +107,33 @@ const App = () => {
     };
   });
 
-  const handleSaveSettings = () => {
+  // Visual feedback state
+  const [showSaveIndicator, setShowSaveIndicator] = useState(false);
+  const isFirstRun = useRef(true);
+
+  // Auto-save effects
+  useEffect(() => {
+    localStorage.setItem('app_lang', lang);
+  }, [lang]);
+
+  useEffect(() => {
+    localStorage.setItem('app_theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
     localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
-    alert(lang === 'fa' ? 'تنظیمات با موفقیت ذخیره شد.' : 'Settings saved successfully.');
-  };
+  }, [systemSettings]);
+
+  // Unified visual feedback trigger
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+    setShowSaveIndicator(true);
+    const timer = setTimeout(() => setShowSaveIndicator(false), 2000);
+    return () => clearTimeout(timer);
+  }, [lang, theme, systemSettings]);
 
   // Data State
   const [coursesList, setCoursesList] = useState(COURSES);
@@ -1063,14 +1088,11 @@ const App = () => {
                    </div>
                    
                    {userRole === 'admin' && (
-                     <div className="flex gap-3 pt-4">
-                       <button 
-                         onClick={handleSaveSettings}
-                         className={`px-6 py-2.5 rounded-xl bg-${theme}-600 text-white font-medium hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20 flex items-center gap-2`}
-                       >
-                         <Save size={18} />
-                         {t.btn_save}
-                       </button>
+                     <div className="flex gap-3 pt-4 items-center">
+                        <div className={`flex items-center gap-2 text-${theme}-600 bg-${theme}-50 px-4 py-2 rounded-lg transition-all duration-500 ease-in-out ${showSaveIndicator ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                          <CheckCircle size={18} />
+                          <span className="text-sm font-medium">{lang === 'fa' ? 'تغییرات به صورت خودکار ذخیره شد' : 'Changes saved automatically'}</span>
+                        </div>
                      </div>
                    )}
                  </div>
