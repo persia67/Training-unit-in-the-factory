@@ -9,8 +9,11 @@ import {
 import { 
   Users, BookOpen, Award, TrendingUp, Download, 
   Upload, MessageSquare, FileText, Settings, 
-  ChevronLeft, Search, Bell, Menu, X, Plus, Filter
+  ChevronLeft, Search, Bell, Menu, X, Plus, Filter,
+  Bot, User, Sparkles, Mic, MicOff, StopCircle
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   Tab, Course, Employee, Message 
 } from './types';
@@ -18,7 +21,7 @@ import {
   COURSES, EMPLOYEES, MONTHLY_TRAINING_DATA, 
   DEPARTMENT_DATA, SKILLS_RADAR_DATA, PERFORMANCE_DATA 
 } from './constants';
-import { getGeminiResponse } from './services/geminiService';
+import { streamGeminiResponse, analyzeDashboardData, GeminiLiveSession } from './services/geminiService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Dashboard);
@@ -30,7 +33,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [aiMessages]);
+  }, [aiMessages, isAiLoading]);
 
   const handleSendToAI = async (message: string) => {
     const text = message.trim();
@@ -42,10 +45,35 @@ const App: React.FC = () => {
     setUserInput('');
 
     try {
-      const response = await getGeminiResponse(text, aiMessages);
-      setAiMessages(prev => [...prev, { role: 'assistant', content: response }]);
+      // Add an empty assistant message to act as a buffer for streaming
+      setAiMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      
+      const stream = streamGeminiResponse(text, aiMessages);
+      let fullContent = '';
+
+      for await (const chunk of stream) {
+        fullContent += chunk;
+        setAiMessages(prev => {
+          const newHistory = [...prev];
+          const lastMsgIndex = newHistory.length - 1;
+          if (newHistory[lastMsgIndex].role === 'assistant') {
+            newHistory[lastMsgIndex] = { ...newHistory[lastMsgIndex], content: fullContent };
+          }
+          return newHistory;
+        });
+      }
     } catch (error: any) {
-      setAiMessages(prev => [...prev, { role: 'assistant', content: error.message }]);
+      setAiMessages(prev => {
+        const newHistory = [...prev];
+        const lastMsgIndex = newHistory.length - 1;
+        const errorMessage = error.message || "خطا در دریافت پاسخ.";
+        if (newHistory[lastMsgIndex].role === 'assistant' && !newHistory[lastMsgIndex].content) {
+          newHistory[lastMsgIndex].content = errorMessage;
+        } else {
+          newHistory.push({ role: 'assistant', content: errorMessage });
+        }
+        return newHistory;
+      });
     } finally {
       setIsAiLoading(false);
     }
@@ -168,127 +196,184 @@ const App: React.FC = () => {
 
 /* --- Sub-Views --- */
 
-const DashboardView: React.FC = () => (
-  <div className="space-y-8 animate-in fade-in duration-500">
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">داشبورد پایش آموزش</h1>
-        <p className="text-slate-500 mt-1">خلاصه‌ی وضعیت برنامه‌های آموزشی و توسعه مهارت کارکنان</p>
-      </div>
-      <div className="flex gap-2">
-        <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition shadow-sm">
-          تغییر بازه زمانی
-        </button>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition shadow-lg shadow-blue-500/20">
-          تولید گزارش ماهانه
-        </button>
-      </div>
-    </div>
+const DashboardView: React.FC = () => {
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-    {/* Stats Grid */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {[
-        { label: 'کل دوره‌های فعال', val: '۲۴', trend: '+۳ این ماه', icon: BookOpen, color: 'blue' },
-        { label: 'کل کارکنان آموزش‌دیده', val: '۱۴۳', trend: '+۱۲ نفر', icon: Users, color: 'emerald' },
-        { label: 'میانگین پیشرفت', val: '۸۱٪', trend: '+۵.۲٪ رشد', icon: TrendingUp, color: 'orange' },
-        { label: 'گواهینامه‌های صادرشده', val: '۸۷', trend: '۱۵ مورد انتظار', icon: Award, color: 'purple' },
-      ].map((stat, i) => (
-        <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:border-blue-200 transition">
-          <div>
-            <p className="text-slate-500 text-xs font-medium mb-1">{stat.label}</p>
-            <h3 className="text-2xl font-bold text-slate-900">{stat.val}</h3>
-            <p className={`text-[10px] mt-2 font-medium ${stat.trend.includes('+') ? 'text-emerald-600' : 'text-slate-400'}`}>
-              {stat.trend}
-            </p>
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    try {
+      const stats = {
+        monthly: MONTHLY_TRAINING_DATA,
+        departments: DEPARTMENT_DATA,
+        skills: SKILLS_RADAR_DATA,
+        performance: PERFORMANCE_DATA
+      };
+      const result = await analyzeDashboardData(stats);
+      setAnalysis(result);
+    } catch (e) {
+      setAnalysis("خطا در تحلیل داده‌ها");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">داشبورد پایش آموزش</h1>
+          <p className="text-slate-500 mt-1">خلاصه‌ی وضعیت برنامه‌های آموزشی و توسعه مهارت کارکنان</p>
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleAnalyze}
+            disabled={isAnalyzing}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:bg-indigo-400"
+          >
+            {isAnalyzing ? (
+              <>
+                <Sparkles size={16} className="animate-spin" />
+                در حال تحلیل هوشمند...
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                تحلیل هوشمند داده‌ها
+              </>
+            )}
+          </button>
+          <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition shadow-sm">
+            تغییر بازه زمانی
+          </button>
+        </div>
+      </div>
+
+      {analysis && (
+        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 p-6 rounded-2xl animate-in zoom-in-95 duration-500 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Bot size={120} />
           </div>
-          <div className={`p-4 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition duration-300`}>
-            <stat.icon size={24} />
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-md">
+                <Sparkles size={20} />
+              </div>
+              <h3 className="font-bold text-indigo-900 text-lg">تحلیل راهبردی هوش مصنوعی</h3>
+              <button onClick={() => setAnalysis(null)} className="mr-auto text-slate-400 hover:text-slate-600"><X size={20}/></button>
+            </div>
+            <div className="markdown-body text-sm text-slate-700 leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
+            </div>
           </div>
         </div>
-      ))}
+      )}
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'کل دوره‌های فعال', val: '۲۴', trend: '+۳ این ماه', icon: BookOpen, color: 'blue' },
+          { label: 'کل کارکنان آموزش‌دیده', val: '۱۴۳', trend: '+۱۲ نفر', icon: Users, color: 'emerald' },
+          { label: 'میانگین پیشرفت', val: '۸۱٪', trend: '+۵.۲٪ رشد', icon: TrendingUp, color: 'orange' },
+          { label: 'گواهینامه‌های صادرشده', val: '۸۷', trend: '۱۵ مورد انتظار', icon: Award, color: 'purple' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:border-blue-200 transition">
+            <div>
+              <p className="text-slate-500 text-xs font-medium mb-1">{stat.label}</p>
+              <h3 className="text-2xl font-bold text-slate-900">{stat.val}</h3>
+              <p className={`text-[10px] mt-2 font-medium ${stat.trend.includes('+') ? 'text-emerald-600' : 'text-slate-400'}`}>
+                {stat.trend}
+              </p>
+            </div>
+            <div className={`p-4 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition duration-300`}>
+              <stat.icon size={24} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <TrendingUp className="text-blue-600" size={20} />
+            روند آموزش‌های ماهانه
+          </h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={MONTHLY_TRAINING_DATA}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                <Legend verticalAlign="top" height={36}/>
+                <Line type="monotone" dataKey="courses" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} name="تعداد دوره" />
+                <Line type="monotone" dataKey="participants" stroke="#10b981" strokeWidth={3} dot={{r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} name="نفر-ساعت" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 mb-6">توزیع واحدی آموزش‌ها</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={DEPARTMENT_DATA}
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {DEPARTMENT_DATA.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 mb-6">پروفایل مهارتی سازمان</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={SKILLS_RADAR_DATA}>
+                <PolarGrid stroke="#e2e8f0" />
+                <PolarAngleAxis dataKey="skill" tick={{fontSize: 12, fill: '#64748b'}} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} axisLine={false} tick={false} />
+                <Radar name="وضعیت فعلی" dataKey="current" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                <Radar name="هدف سالانه" dataKey="target" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                <Tooltip />
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 mb-6">مقایسه عملکرد و بودجه</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={PERFORMANCE_DATA}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="quarter" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip cursor={{fill: '#f8fafc'}} />
+                <Legend />
+                <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} name="شاخص اثربخشی" />
+                <Bar dataKey="budget" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="تخصیص بودجه" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
     </div>
-
-    {/* Charts Grid */}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-          <TrendingUp className="text-blue-600" size={20} />
-          روند آموزش‌های ماهانه
-        </h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={MONTHLY_TRAINING_DATA}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-              <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-              <Legend verticalAlign="top" height={36}/>
-              <Line type="monotone" dataKey="courses" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} name="تعداد دوره" />
-              <Line type="monotone" dataKey="participants" stroke="#10b981" strokeWidth={3} dot={{r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} name="نفر-ساعت" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">توزیع واحدی آموزش‌ها</h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={DEPARTMENT_DATA}
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {DEPARTMENT_DATA.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">پروفایل مهارتی سازمان</h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={SKILLS_RADAR_DATA}>
-              <PolarGrid stroke="#e2e8f0" />
-              <PolarAngleAxis dataKey="skill" tick={{fontSize: 12, fill: '#64748b'}} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} axisLine={false} tick={false} />
-              <Radar name="وضعیت فعلی" dataKey="current" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-              <Radar name="هدف سالانه" dataKey="target" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
-              <Tooltip />
-              <Legend />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">مقایسه عملکرد و بودجه</h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={PERFORMANCE_DATA}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="quarter" axisLine={false} tickLine={false} />
-              <YAxis axisLine={false} tickLine={false} />
-              <Tooltip cursor={{fill: '#f8fafc'}} />
-              <Legend />
-              <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} name="شاخص اثربخشی" />
-              <Bar dataKey="budget" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="تخصیص بودجه" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const CoursesView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -534,99 +619,233 @@ interface AIViewProps {
   messagesEndRef: React.RefObject<HTMLDivElement>;
 }
 
-const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput, setUserInput, messagesEndRef }) => (
-  <div className="bg-white rounded-3xl shadow-sm border border-slate-100 h-[calc(100vh-180px)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-    <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-          <MessageSquare size={24} className="text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 leading-tight">مشاور هوشمند آموزش</h2>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Online & Expert</p>
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <button className="p-2 text-slate-400 hover:text-slate-600 transition"><Settings size={20}/></button>
-      </div>
-    </div>
+// Markdown component configuration
+const markdownComponents = {
+  p: ({children}: any) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+  ul: ({children}: any) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+  ol: ({children}: any) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+  li: ({children}: any) => <li className="text-slate-700">{children}</li>,
+  h1: ({children}: any) => <h1 className="text-lg font-bold mb-3 mt-4 text-slate-900 border-b pb-2">{children}</h1>,
+  h2: ({children}: any) => <h2 className="text-md font-bold mb-2 mt-3 text-slate-800">{children}</h2>,
+  h3: ({children}: any) => <h3 className="text-sm font-bold mb-2 mt-2 text-slate-800">{children}</h3>,
+  code: ({inline, children}: any) => inline 
+    ? <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono text-pink-600 border border-slate-200">{children}</code> 
+    : <div className="bg-slate-900 text-slate-100 p-4 rounded-xl my-3 overflow-x-auto shadow-inner" dir="ltr"><code className="font-mono text-xs">{children}</code></div>,
+  pre: ({children}: any) => <>{children}</>,
+  table: ({children}: any) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-slate-200 border border-slate-200 rounded-lg">{children}</table></div>,
+  thead: ({children}: any) => <thead className="bg-slate-50">{children}</thead>,
+  th: ({children}: any) => <th className="px-4 py-2 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{children}</th>,
+  td: ({children}: any) => <td className="px-4 py-2 whitespace-nowrap text-sm text-slate-600 border-t border-slate-100">{children}</td>,
+  blockquote: ({children}: any) => <blockquote className="border-r-4 border-blue-500 pr-4 py-1 my-3 bg-blue-50/50 rounded-l-lg italic text-slate-600">{children}</blockquote>,
+  strong: ({children}: any) => <strong className="font-bold text-slate-900">{children}</strong>,
+  a: ({href, children}: any) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a>,
+};
 
-    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
-      {messages.length === 0 && (
-        <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
-          <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center mb-6">
-            <MessageSquare size={40} />
+const AIView: React.FC<AIViewProps> = ({ messages, isLoading, onSend, userInput, setUserInput, messagesEndRef }) => {
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
+
+  useEffect(() => {
+    if (isVoiceMode) {
+      const startSession = async () => {
+        liveSessionRef.current = new GeminiLiveSession();
+        await liveSessionRef.current.start(() => setIsVoiceMode(false));
+      };
+      startSession();
+    } else {
+      liveSessionRef.current?.stop();
+      liveSessionRef.current = null;
+    }
+    
+    return () => {
+      liveSessionRef.current?.stop();
+    };
+  }, [isVoiceMode]);
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 h-[calc(100vh-180px)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-colors duration-500 ${isVoiceMode ? 'bg-red-500 shadow-red-500/30' : 'bg-gradient-to-br from-blue-600 to-indigo-600 shadow-blue-500/30'}`}>
+              {isVoiceMode ? <Mic size={24} className="text-white animate-pulse" /> : <Sparkles size={24} className="text-white" />}
+            </div>
+            <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white"></span>
+            </span>
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-2">چگونه می‌توانم به دانیال استیل کمک کنم؟</h3>
-          <p className="text-slate-500 text-sm leading-relaxed mb-8">
-            من متخصص آموزش در صنعت فولاد هستم. می‌توانید درباره طراحی دوره‌ها، تحلیل نیازها یا محتوا از من بپرسید.
-          </p>
-          <div className="grid grid-cols-1 gap-2 w-full">
-            {[
-              'سرفصل آموزشی اپراتور کوره قوس الکتریکی را طراحی کن.',
-              'چطور مهارت‌های نرم سرپرستان خط تولید را افزایش دهیم؟',
-              'یک برنامه ایمنی برای واحد انبار محصولات فولادی بنویس.'
-            ].map((q, i) => (
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 leading-tight">مشاور هوشمند آموزش</h2>
+            <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider flex items-center gap-1">
+              {isVoiceMode ? 'Gemini Live • Voice Mode' : 'Powered by Gemini 3 Pro'}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+           <button 
+             onClick={() => setIsVoiceMode(!isVoiceMode)}
+             className={`p-2 transition rounded-xl flex items-center gap-2 px-3 text-sm font-bold ${
+               isVoiceMode 
+                 ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                 : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+             }`}
+           >
+             {isVoiceMode ? (
+               <>
+                 <StopCircle size={18} />
+                 پایان مکالمه
+               </>
+             ) : (
+               <>
+                 <Mic size={18} />
+                 گفتگوی صوتی
+               </>
+             )}
+           </button>
+          <button className="p-2 text-slate-400 hover:text-slate-600 transition"><Settings size={20}/></button>
+        </div>
+      </div>
+
+      {isVoiceMode ? (
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/50 relative overflow-hidden">
+           <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+              <div className="w-96 h-96 bg-blue-400 rounded-full filter blur-3xl animate-pulse"></div>
+           </div>
+           
+           <div className="z-10 text-center space-y-8 animate-in fade-in zoom-in duration-700">
+              <div className="relative">
+                <div className="w-32 h-32 rounded-full bg-white shadow-xl flex items-center justify-center border-4 border-slate-100 relative z-10">
+                  <Mic size={48} className="text-red-500" />
+                </div>
+                <div className="absolute top-0 left-0 w-full h-full rounded-full bg-red-400 animate-ping opacity-20"></div>
+                <div className="absolute -top-4 -left-4 w-[calc(100%+32px)] h-[calc(100%+32px)] rounded-full border border-red-200 animate-pulse"></div>
+              </div>
+              
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">در حال گوش دادن...</h3>
+                <p className="text-slate-500">می‌توانید به صورت طبیعی با هوش مصنوعی صحبت کنید.</p>
+              </div>
+
+              <div className="flex gap-2 justify-center">
+                 <span className="w-1 h-8 bg-slate-300 rounded-full animate-[bounce_1s_infinite_100ms]"></span>
+                 <span className="w-1 h-12 bg-slate-400 rounded-full animate-[bounce_1s_infinite_200ms]"></span>
+                 <span className="w-1 h-6 bg-slate-300 rounded-full animate-[bounce_1s_infinite_300ms]"></span>
+                 <span className="w-1 h-10 bg-slate-400 rounded-full animate-[bounce_1s_infinite_400ms]"></span>
+                 <span className="w-1 h-6 bg-slate-300 rounded-full animate-[bounce_1s_infinite_500ms]"></span>
+              </div>
+           </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/50 scroll-smooth">
+            {messages.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
+                <div className="w-24 h-24 bg-white rounded-full shadow-lg border-4 border-blue-50 flex items-center justify-center mb-6 animate-in zoom-in duration-500">
+                  <Bot size={48} className="text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">چگونه می‌توانم به دانیال استیل کمک کنم؟</h3>
+                <p className="text-slate-500 text-sm leading-relaxed mb-8 px-4">
+                  من با تحلیل داده‌های آموزشی و استانداردهای صنعت فولاد، آماده پاسخگویی به سوالات شما هستم.
+                </p>
+                <div className="grid grid-cols-1 gap-2 w-full">
+                  {[
+                    'تدوین سرفصل دوره "ریخته‌گری مداوم"',
+                    'تحلیل شاخص اثربخشی آموزش در سال ۱۴۰۳',
+                    'پیشنهاد مسیر شغلی برای تکنسین‌های نت'
+                  ].map((q, i) => (
+                    <button 
+                      key={i}
+                      onClick={() => onSend(q)}
+                      className="text-right p-4 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm hover:shadow-md transform hover:-translate-y-0.5 duration-200"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((msg, i) => {
+              const isUser = msg.role === 'user';
+              const isLast = i === messages.length - 1;
+              
+              return (
+                <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                  <div className={`flex gap-3 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                      isUser ? 'bg-slate-200 text-slate-600' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                    }`}>
+                      {isUser ? <User size={16} /> : <Bot size={16} />}
+                    </div>
+                    
+                    <div className={`p-5 rounded-3xl shadow-sm text-sm ${
+                      isUser 
+                        ? 'bg-white text-slate-800 border border-slate-200 rounded-tr-none' 
+                        : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
+                    }`}>
+                      {isUser ? (
+                        <p className="font-medium">{msg.content}</p>
+                      ) : (
+                        <div className="markdown-body">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                          {isLoading && isLast && (
+                             <span className="inline-block w-2 h-4 bg-blue-600 ml-1 animate-pulse align-middle rounded-full"></span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
+              <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex gap-3">
+                   <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/30">
+                      <Bot size={16} />
+                    </div>
+                    <div className="bg-white border border-slate-200 p-5 rounded-3xl rounded-tl-none shadow-sm flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                    </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="p-6 bg-white border-t border-slate-100">
+            <div className="flex gap-4 items-center bg-slate-50 p-2 pr-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition shadow-inner">
+              <input 
+                type="text" 
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSend(userInput)}
+                placeholder="سوال خود را اینجا بنویسید..." 
+                className="flex-1 bg-transparent border-none outline-none text-sm font-medium py-2"
+              />
               <button 
-                key={i}
-                onClick={() => onSend(q)}
-                className="text-right p-4 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition"
+                onClick={() => onSend(userInput)}
+                disabled={isLoading || !userInput.trim()}
+                className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-500/40 disabled:bg-slate-300 disabled:shadow-none"
               >
-                {q}
+                <ChevronLeft className="rotate-180" size={20} />
               </button>
-            ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
-
-      {messages.map((msg, i) => (
-        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-          <div className={`max-w-[85%] p-5 rounded-3xl shadow-sm leading-relaxed whitespace-pre-wrap ${
-            msg.role === 'user' 
-              ? 'bg-blue-600 text-white rounded-tr-none' 
-              : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none font-medium'
-          }`}>
-            <p className="text-sm">{msg.content}</p>
-          </div>
-        </div>
-      ))}
-
-      {isLoading && (
-        <div className="flex justify-end">
-          <div className="bg-white border border-slate-200 p-5 rounded-3xl rounded-tl-none shadow-sm flex items-center gap-2">
-            <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
-            <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></span>
-            <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '400ms'}}></span>
-          </div>
-        </div>
-      )}
-      <div ref={messagesEndRef} />
     </div>
-
-    <div className="p-6 bg-white border-t border-slate-100">
-      <div className="flex gap-4 items-center bg-slate-50 p-2 pr-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition shadow-inner">
-        <input 
-          type="text" 
-          value={userInput}
-          onChange={(e) => setUserInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && onSend(userInput)}
-          placeholder="سوال خود را اینجا بنویسید..." 
-          className="flex-1 bg-transparent border-none outline-none text-sm font-medium py-2"
-        />
-        <button 
-          onClick={() => onSend(userInput)}
-          disabled={isLoading || !userInput.trim()}
-          className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-500/40 disabled:bg-slate-300 disabled:shadow-none"
-        >
-          <ChevronLeft className="rotate-180" size={20} />
-        </button>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const SettingsView: React.FC = () => (
   <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 max-w-3xl animate-in fade-in duration-500">
