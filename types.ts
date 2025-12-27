@@ -2,6 +2,7 @@
 export interface Course {
   id: number;
   name: string;
+  type: 'internal' | 'external'; // Added to distinguish internal courses
   participants: number;
   completion: number;
   status: 'active' | 'completed';
@@ -13,6 +14,7 @@ export interface Employee {
   department: string;
   coursesCompleted: number;
   lastTraining: string;
+  completedCoursesList: { id: number; name: string; date: string; score: number }[]; // Added detailed history
 }
 
 export interface Message {
@@ -31,3 +33,15 @@ export enum Tab {
 
 export type Language = 'fa' | 'en';
 export type ThemeColor = 'blue' | 'emerald' | 'violet' | 'rose' | 'amber';
+export type ImageSize = '1K' | '2K' | '4K';
+
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}

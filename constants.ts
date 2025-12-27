@@ -1,19 +1,60 @@
-
 import { Course, Employee, Language } from './types';
 
+export const APP_VERSION = '1.3.0';
+
 export const COURSES: Course[] = [
-  { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', participants: 45, completion: 78, status: 'active' },
-  { id: 2, name: 'مدیریت کیفیت ISO 9001', participants: 32, completion: 92, status: 'active' },
-  { id: 3, name: 'متالورژی فیزیکی فولاد (Physical Metallurgy)', participants: 28, completion: 65, status: 'active' },
-  { id: 4, name: 'نگهداری و تعمیرات پیشگیرانه (PM)', participants: 38, completion: 100, status: 'completed' },
-  { id: 5, name: 'کار با جرثقیل‌های سقفی', participants: 15, completion: 45, status: 'active' },
+  { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', type: 'internal', participants: 45, completion: 78, status: 'active' },
+  { id: 2, name: 'مدیریت کیفیت ISO 9001', type: 'external', participants: 32, completion: 92, status: 'active' },
+  { id: 3, name: 'متالورژی فیزیکی فولاد (Physical Metallurgy)', type: 'internal', participants: 28, completion: 65, status: 'active' },
+  { id: 4, name: 'نگهداری و تعمیرات پیشگیرانه (PM)', type: 'internal', participants: 38, completion: 100, status: 'completed' },
+  { id: 5, name: 'کار با جرثقیل‌های سقفی', type: 'external', participants: 15, completion: 45, status: 'active' },
+  { id: 6, name: 'اصول سرپرستی (Internal)', type: 'internal', participants: 20, completion: 10, status: 'active' },
 ];
 
 export const EMPLOYEES: Employee[] = [
-  { id: 1, name: 'Ali Ahmadi', department: 'تولید نورد', coursesCompleted: 5, lastTraining: '1403/07/15' },
-  { id: 2, name: 'Maryam Karimi', department: 'کنترل کیفی', coursesCompleted: 8, lastTraining: '1403/07/20' },
-  { id: 3, name: 'Reza Mohammadi', department: 'فنی و مهندسی', coursesCompleted: 6, lastTraining: '1403/07/18' },
-  { id: 4, name: 'Sara Saeedi', department: 'منابع انسانی', coursesCompleted: 3, lastTraining: '1403/08/01' },
+  { 
+    id: 1, 
+    name: 'Ali Ahmadi', 
+    department: 'تولید نورد', 
+    coursesCompleted: 5, 
+    lastTraining: '1403/07/15',
+    completedCoursesList: [
+      { id: 101, name: 'ایمنی عمومی', date: '1402/10/01', score: 95 },
+      { id: 102, name: 'کار با دستگاه نورد', date: '1403/02/15', score: 88 }
+    ]
+  },
+  { 
+    id: 2, 
+    name: 'Maryam Karimi', 
+    department: 'کنترل کیفی', 
+    coursesCompleted: 8, 
+    lastTraining: '1403/07/20',
+    completedCoursesList: [
+      { id: 201, name: 'کنترل کیفیت آماری', date: '1403/01/20', score: 98 },
+      { id: 202, name: 'ISO 9001:2015', date: '1403/04/10', score: 92 },
+      { id: 203, name: 'بازرسی جوش', date: '1403/06/05', score: 85 }
+    ]
+  },
+  { 
+    id: 3, 
+    name: 'Reza Mohammadi', 
+    department: 'فنی و مهندسی', 
+    coursesCompleted: 6, 
+    lastTraining: '1403/07/18',
+    completedCoursesList: [
+      { id: 301, name: 'PLC Programming', date: '1402/11/12', score: 90 }
+    ]
+  },
+  { 
+    id: 4, 
+    name: 'Sara Saeedi', 
+    department: 'منابع انسانی', 
+    coursesCompleted: 3, 
+    lastTraining: '1403/08/01',
+    completedCoursesList: [
+      { id: 401, name: 'قوانین کار و تامین اجتماعی', date: '1403/03/01', score: 100 }
+    ]
+  },
 ];
 
 export const MONTHLY_TRAINING_DATA = [
@@ -31,21 +72,6 @@ export const DEPARTMENT_DATA = [
   { name: 'Technical', value: 20, color: '#f59e0b' },
   { name: 'Safety', value: 15, color: '#ef4444' },
   { name: 'HR/Other', value: 5, color: '#8b5cf6' },
-];
-
-export const SKILLS_RADAR_DATA = [
-  { skill: 'Technical', current: 75, target: 90 },
-  { skill: 'Safety', current: 85, target: 95 },
-  { skill: 'Quality', current: 70, target: 85 },
-  { skill: 'Management', current: 65, target: 80 },
-  { skill: 'Soft Skills', current: 60, target: 75 },
-];
-
-export const PERFORMANCE_DATA = [
-  { quarter: 'Q1', score: 72, budget: 85 },
-  { quarter: 'Q2', score: 78, budget: 82 },
-  { quarter: 'Q3', score: 85, budget: 88 },
-  { quarter: 'Q4', score: 88, budget: 90 },
 ];
 
 export const TRANSLATIONS = {
@@ -85,6 +111,10 @@ export const TRANSLATIONS = {
     filter_all: 'همه دوره‌ها',
     filter_active: 'در حال برگزاری',
     filter_completed: 'تکمیل شده',
+    filter_type_label: 'نوع دوره:',
+    filter_type_all: 'همه',
+    filter_type_internal: 'داخلی',
+    filter_type_external: 'خارجی',
     col_course_name: 'نام و شناسه دوره',
     col_participants: 'تعداد فراگیران',
     col_progress: 'درصد پیشرفت محتوا',
@@ -92,6 +122,22 @@ export const TRANSLATIONS = {
     col_actions: 'مدیریت',
     view_details: 'مشاهده جزئیات',
 
+    // Employees
+    emp_title: 'مدیریت سوابق کارکنان',
+    emp_subtitle: 'مشاهده سوابق آموزشی، صدور گواهینامه و وضعیت دوره‌ها',
+    emp_card_courses: 'دوره‌های تکمیل شده:',
+    emp_details_title: 'جزئیات پرونده آموزشی',
+    emp_history_title: 'تاریخچه دوره‌های گذرانده شده',
+    emp_col_course: 'نام دوره',
+    emp_col_date: 'تاریخ',
+    emp_col_score: 'نمره',
+    emp_col_cert: 'گواهینامه',
+    btn_generate_cert: 'صدور مدرک هوشمند',
+    cert_generating: 'در حال طراحی گواهینامه...',
+    cert_modal_title: 'گواهینامه پایان دوره',
+    cert_quality_label: 'کیفیت تصویر:',
+    cert_select_api: 'انتخاب کلید API',
+    
     // AI
     ai_title: 'مشاور هوشمند آموزش',
     ai_subtitle: 'Powered by Gemini 3 Pro',
@@ -110,6 +156,9 @@ export const TRANSLATIONS = {
     settings_email: 'ایمیل سازمانی',
     settings_notifs: 'تنظیمات اعلان‌ها',
     settings_theme: 'شخصی‌سازی ظاهر',
+    settings_logo: 'لوگوی شرکت',
+    settings_logo_desc: 'برای درج در گواهینامه‌ها (حداکثر 2MB)',
+    btn_upload_logo: 'آپلود لوگو',
     btn_save: 'ذخیره تغییرات',
     btn_cancel: 'انصراف',
     lang_select: 'زبان سیستم',
@@ -151,12 +200,32 @@ export const TRANSLATIONS = {
     filter_all: 'All Courses',
     filter_active: 'Active',
     filter_completed: 'Completed',
+    filter_type_label: 'Type:',
+    filter_type_all: 'All',
+    filter_type_internal: 'Internal',
+    filter_type_external: 'External',
     col_course_name: 'Course Name & ID',
     col_participants: 'Participants',
     col_progress: 'Content Progress',
     col_status: 'Status',
     col_actions: 'Actions',
     view_details: 'View Details',
+
+    // Employees
+    emp_title: 'Employee Records',
+    emp_subtitle: 'View training history, issue certificates, and course status',
+    emp_card_courses: 'Courses Completed:',
+    emp_details_title: 'Training File Details',
+    emp_history_title: 'Completed Courses History',
+    emp_col_course: 'Course Name',
+    emp_col_date: 'Date',
+    emp_col_score: 'Score',
+    emp_col_cert: 'Certificate',
+    btn_generate_cert: 'Smart Certificate',
+    cert_generating: 'Designing Certificate...',
+    cert_modal_title: 'Completion Certificate',
+    cert_quality_label: 'Image Quality:',
+    cert_select_api: 'Select API Key',
 
     // AI
     ai_title: 'Smart Training Consultant',
@@ -176,6 +245,9 @@ export const TRANSLATIONS = {
     settings_email: 'Company Email',
     settings_notifs: 'Notification Settings',
     settings_theme: 'Appearance',
+    settings_logo: 'Company Logo',
+    settings_logo_desc: 'For certificates (Max 2MB)',
+    btn_upload_logo: 'Upload Logo',
     btn_save: 'Save Changes',
     btn_cancel: 'Cancel',
     lang_select: 'System Language',

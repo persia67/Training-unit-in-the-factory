@@ -18,17 +18,31 @@ import {
   TrendingUp,
   BrainCircuit,
   MoreVertical,
-  CheckCircle
+  CheckCircle,
+  Download,
+  Calendar,
+  Filter,
+  FileText,
+  Plus,
+  Trash,
+  Edit,
+  GraduationCap,
+  Building2,
+  Globe,
+  Upload,
+  Image as ImageIcon,
+  KeyRound
 } from 'lucide-react';
 import { 
   COURSES, 
   EMPLOYEES, 
   MONTHLY_TRAINING_DATA, 
   DEPARTMENT_DATA, 
-  TRANSLATIONS 
+  TRANSLATIONS,
+  APP_VERSION
 } from './constants';
-import { Tab, Language, ThemeColor, Message } from './types';
-import { streamGeminiResponse, analyzeDashboardData, GeminiLiveSession } from './services/geminiService';
+import { Tab, Language, ThemeColor, Message, Employee, ImageSize } from './types';
+import { streamGeminiResponse, analyzeDashboardData, GeminiLiveSession, generateCertificate } from './services/geminiService';
 
 // Simple CSS Chart Components
 const BarChart = ({ data }: { data: any[] }) => (
@@ -68,12 +82,29 @@ const SimplePieChart = ({ data }: { data: any[] }) => (
   </div>
 );
 
-export default function App() {
+const App = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Dashboard);
   const [lang, setLang] = useState<Language>('fa');
   const [theme, setTheme] = useState<ThemeColor>('blue');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // Data State
+  const [coursesList, setCoursesList] = useState(COURSES);
+  
+  // Modal & Action Menu State
+  const [isNewCourseModalOpen, setIsNewCourseModalOpen] = useState(false);
+  const [newCourseName, setNewCourseName] = useState('');
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const [selectedCourseType, setSelectedCourseType] = useState<'all' | 'internal' | 'external'>('all');
+
+  // Employee Detail & Certificate State
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isGeneratingCert, setIsGeneratingCert] = useState(false);
+  const [generatedCertUrl, setGeneratedCertUrl] = useState<string | null>(null);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [certImageSize, setCertImageSize] = useState<ImageSize>('1K');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
   // AI Chat State
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -99,6 +130,17 @@ export default function App() {
     }
   }, [messages]);
 
+  // Check for API key availability on mount/updates
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio && window.aistudio.hasSelectedApiKey) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      }
+    };
+    checkKey();
+  }, [activeTab, selectedEmployee]);
+
   const tabsConfig = [
     { id: Tab.Dashboard, label: t.dashboard, icon: LayoutDashboard },
     { id: Tab.Courses, label: t.courses, icon: BookOpen },
@@ -107,6 +149,118 @@ export default function App() {
     { id: Tab.AI, label: t.ai, icon: Bot },
     { id: Tab.Settings, label: t.settings, icon: Settings },
   ];
+
+  // Logic for adding a new course
+  const handleAddCourse = () => {
+    if (!newCourseName.trim()) return;
+    
+    const newCourse = {
+      id: coursesList.length + 1,
+      name: newCourseName,
+      type: 'internal' as const, // Default to internal for new courses
+      participants: 0,
+      completion: 0,
+      status: 'active' as const
+    };
+    
+    setCoursesList([newCourse, ...coursesList]);
+    setNewCourseName('');
+    setIsNewCourseModalOpen(false);
+  };
+
+  const handleDeleteCourse = (id: number) => {
+    setCoursesList(coursesList.filter(c => c.id !== id));
+    setOpenActionMenuId(null);
+  };
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompanyLogo(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSelectApiKey = async () => {
+    if (window.aistudio && window.aistudio.openSelectKey) {
+       await window.aistudio.openSelectKey();
+       const hasKey = await window.aistudio.hasSelectedApiKey();
+       setHasApiKey(hasKey);
+    } else {
+      alert("API Key selection not supported in this environment.");
+    }
+  };
+
+  const handleGenerateCertificate = async (courseName: string) => {
+    if (!selectedEmployee) return;
+
+    // Check API Key for gemini-3-pro-image-preview
+    if (!hasApiKey) {
+      await handleSelectApiKey();
+      // Re-check
+      if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
+         setHasApiKey(true);
+      } else {
+         return; // User cancelled or failed
+      }
+    }
+
+    setIsGeneratingCert(true);
+    setGeneratedCertUrl(null);
+    try {
+      const url = await generateCertificate(selectedEmployee.name, courseName, companyLogo, certImageSize, lang);
+      setGeneratedCertUrl(url);
+    } catch (error) {
+      console.error(error);
+      alert('Error generating certificate. Please ensure you have selected a valid paid API key for high-quality image generation.');
+      // If error might be due to key, reset
+      if (window.aistudio) {
+         // Optional: logic to reset key if needed, but usually we just prompt again next time
+      }
+    } finally {
+      setIsGeneratingCert(false);
+    }
+  };
+
+  // Localization logic for charts
+  const getLocalizedMonth = (month: string) => {
+    if (lang === 'en') return month;
+    const map: Record<string, string> = {
+      'Apr': 'فروردین', 'May': 'اردیبهشت', 'Jun': 'خرداد',
+      'Jul': 'تیر', 'Aug': 'مرداد', 'Sep': 'شهریور'
+    };
+    return map[month] || month;
+  };
+
+  const getLocalizedDept = (dept: string) => {
+    if (lang === 'en') return dept;
+    const map: Record<string, string> = {
+      'Production': 'تولید',
+      'Quality': 'کنترل کیفیت',
+      'Technical': 'فنی',
+      'Safety': 'ایمنی',
+      'HR/Other': 'منابع انسانی'
+    };
+    return map[dept] || dept;
+  };
+
+  const localizedMonthlyData = MONTHLY_TRAINING_DATA.map(d => ({
+    ...d,
+    month: getLocalizedMonth(d.month)
+  }));
+
+  const localizedDeptData = DEPARTMENT_DATA.map(d => ({
+    ...d,
+    name: getLocalizedDept(d.name)
+  }));
+
+  const filteredCourses = coursesList.filter(c => {
+    if (selectedCourseType === 'all') return true;
+    return c.type === selectedCourseType;
+  });
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -161,7 +315,7 @@ export default function App() {
     setIsAnalyzing(true);
     try {
       const result = await analyzeDashboardData({
-        courses: COURSES,
+        courses: coursesList,
         employees: EMPLOYEES,
         monthly: MONTHLY_TRAINING_DATA
       }, lang);
@@ -233,6 +387,7 @@ export default function App() {
               {t.logout}
             </button>
           </div>
+          <p className="text-center text-[10px] text-slate-600 mt-2 font-mono opacity-60">v{APP_VERSION}</p>
         </div>
       </aside>
 
@@ -314,7 +469,7 @@ export default function App() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { label: t.stat_active_courses, value: '12', icon: BookOpen, color: 'blue' },
+                    { label: t.stat_active_courses, value: coursesList.length, icon: BookOpen, color: 'blue' },
                     { label: t.stat_trained_employees, value: '1,245', icon: Users, color: 'emerald' },
                     { label: t.stat_progress, value: '87%', icon: TrendingUp, color: 'violet' },
                     { label: t.stat_certificates, value: '450', icon: Award, color: 'amber' },
@@ -337,11 +492,11 @@ export default function App() {
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="font-bold text-lg text-slate-800">{t.chart_monthly}</h3>
                     </div>
-                    <BarChart data={MONTHLY_TRAINING_DATA} />
+                    <BarChart data={localizedMonthlyData} />
                   </div>
                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                     <h3 className="font-bold text-lg text-slate-800 mb-6">{t.chart_dist}</h3>
-                    <SimplePieChart data={DEPARTMENT_DATA} />
+                    <SimplePieChart data={localizedDeptData} />
                   </div>
                 </div>
               </>
@@ -349,17 +504,45 @@ export default function App() {
 
             {/* Courses View */}
             {activeTab === Tab.Courses && (
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-visible">
+                <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">{t.course_manage_title}</h3>
                     <p className="text-sm text-slate-500">{t.course_manage_subtitle}</p>
                   </div>
-                  <button className={`bg-${theme}-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-${theme}-700`}>
-                    {t.btn_new_course}
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                      <button 
+                        onClick={() => setSelectedCourseType('all')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${selectedCourseType === 'all' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        {t.filter_type_all}
+                      </button>
+                      <button 
+                        onClick={() => setSelectedCourseType('internal')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${selectedCourseType === 'internal' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        <Building2 size={12} />
+                        {t.filter_type_internal}
+                      </button>
+                      <button 
+                        onClick={() => setSelectedCourseType('external')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${selectedCourseType === 'external' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        <Globe size={12} />
+                        {t.filter_type_external}
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => setIsNewCourseModalOpen(true)}
+                      className={`bg-${theme}-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-${theme}-700 flex items-center gap-2`}
+                    >
+                      <Plus size={16} />
+                      {t.btn_new_course}
+                    </button>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-visible">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50 text-slate-500 font-medium">
                       <tr>
@@ -371,9 +554,17 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {COURSES.map(course => (
+                      {filteredCourses.map(course => (
                         <tr key={course.id} className="hover:bg-slate-50/50 transition">
-                          <td className="px-6 py-4 font-medium text-slate-900">{course.name}</td>
+                          <td className="px-6 py-4">
+                             <div className="flex flex-col">
+                               <span className="font-medium text-slate-900">{course.name}</span>
+                               <span className="text-[10px] text-slate-400 mt-0.5 inline-flex items-center gap-1">
+                                 {course.type === 'internal' ? <Building2 size={10} /> : <Globe size={10} />}
+                                 {course.type === 'internal' ? t.filter_type_internal : t.filter_type_external}
+                               </span>
+                             </div>
+                          </td>
                           <td className="px-6 py-4 text-slate-600">{course.participants}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
@@ -393,10 +584,42 @@ export default function App() {
                               {course.status === 'active' ? t.filter_active : t.filter_completed}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <button className="text-slate-400 hover:text-blue-600">
+                          <td className="px-6 py-4 text-right relative">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(openActionMenuId === course.id ? null : course.id);
+                              }}
+                              className="text-slate-400 hover:text-blue-600 p-1 rounded-full hover:bg-slate-100 transition"
+                            >
                               <MoreVertical size={18} />
                             </button>
+                            
+                            {/* Action Menu */}
+                            {openActionMenuId === course.id && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-10" 
+                                  onClick={() => setOpenActionMenuId(null)}
+                                ></div>
+                                <div className="absolute left-0 top-full mt-1 w-32 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                                  <button 
+                                    onClick={() => setOpenActionMenuId(null)}
+                                    className="w-full text-right px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                                  >
+                                    <Edit size={14} className="text-blue-500" />
+                                    {lang === 'fa' ? 'ویرایش' : 'Edit'}
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteCourse(course.id)}
+                                    className="w-full text-right px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                  >
+                                    <Trash size={14} />
+                                    {lang === 'fa' ? 'حذف' : 'Delete'}
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -408,19 +631,36 @@ export default function App() {
 
             {/* Employees View */}
             {activeTab === Tab.Employees && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
-                 <Users className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-                 <h3 className="text-lg font-bold text-slate-900">Employee Management</h3>
-                 <p className="text-slate-500 max-w-md mx-auto mt-2">
-                   This module manages employee records, training history, and certification status. 
-                 </p>
-                 <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl text-left">
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 min-h-[400px]">
+                 <div className="text-center mb-8">
+                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                     <Users className="w-8 h-8 text-slate-500" />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-900">{t.emp_title}</h3>
+                   <p className="text-slate-500 max-w-md mx-auto mt-2 text-sm">
+                     {t.emp_subtitle}
+                   </p>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {EMPLOYEES.map(emp => (
-                      <div key={emp.id} className="p-4 border border-slate-100 rounded-xl hover:shadow-md transition bg-slate-50/50">
-                        <h4 className="font-bold text-slate-800">{emp.name}</h4>
-                        <p className="text-xs text-slate-500">{emp.department}</p>
-                        <div className="mt-2 text-sm">
-                          Courses: <span className="font-medium">{emp.coursesCompleted}</span>
+                      <div 
+                        key={emp.id} 
+                        onClick={() => setSelectedEmployee(emp)}
+                        className="p-5 border border-slate-200 rounded-xl hover:shadow-lg hover:border-blue-200 transition bg-white cursor-pointer group"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-lg group-hover:text-blue-600 transition">{emp.name}</h4>
+                            <p className="text-sm text-slate-500 mt-1">{emp.department}</p>
+                          </div>
+                          <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition">
+                            <GraduationCap size={20} />
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between text-sm">
+                          <span className="text-slate-500">{t.emp_card_courses}</span>
+                          <span className="font-bold text-slate-900">{emp.coursesCompleted}</span>
                         </div>
                       </div>
                     ))}
@@ -430,11 +670,85 @@ export default function App() {
 
             {/* Reports View */}
             {activeTab === Tab.Reports && (
-               <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
-                <FileBarChart className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-slate-900">Reports & Analytics</h3>
-                <p className="text-slate-500">Comprehensive training reports would appear here.</p>
-             </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
+                {/* Standard Reports Card */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`p-2 bg-${theme}-100 text-${theme}-600 rounded-lg`}>
+                      <FileBarChart className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">{t.reports} (Standard)</h3>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {[
+                      { title: lang === 'fa' ? 'گزارش اثربخشی سالانه (کرک‌پاتریک)' : 'Annual Effectiveness Report (Kirkpatrick)', type: 'PDF' },
+                      { title: lang === 'fa' ? 'لیست نمرات و حضور و غیاب' : 'Attendance & Score List', type: 'Excel' },
+                      { title: lang === 'fa' ? 'تحلیل شکاف مهارتی' : 'Skill Gap Analysis', type: 'PDF' },
+                      { title: lang === 'fa' ? 'گزارش بازگشت سرمایه (ROI)' : 'Training ROI Statement', type: 'PPT' },
+                    ].map((report, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-300 transition group cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-white p-2 rounded-lg border border-slate-200 text-slate-500 group-hover:text-blue-600 transition">
+                            <FileText size={18} />
+                          </div>
+                          <span className="font-medium text-slate-700 text-sm">{report.title}</span>
+                        </div>
+                        <button className="text-slate-400 group-hover:text-blue-600 transition">
+                          <Download size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Report Builder */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`p-2 bg-emerald-100 text-emerald-600 rounded-lg`}>
+                      <Filter className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">{lang === 'fa' ? 'سازنده گزارش سفارشی' : 'Custom Report Builder'}</h3>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'واحد سازمانی' : 'Department'}</label>
+                      <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option>{lang === 'fa' ? 'همه واحدها' : 'All Departments'}</option>
+                        <option>Production</option>
+                        <option>Quality Control</option>
+                        <option>Technical</option>
+                        <option>HR</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'از تاریخ' : 'From Date'}</label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                          <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'تا تاریخ' : 'To Date'}</label>
+                         <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                          <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4">
+                      <button className={`w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2`}>
+                        <Search size={18} />
+                        {lang === 'fa' ? 'تولید گزارش' : 'Generate Report'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* AI View */}
@@ -571,13 +885,225 @@ export default function App() {
                        ))}
                      </div>
                    </div>
+
+                   <div>
+                     <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_logo}</label>
+                     <p className="text-xs text-slate-500 mb-3">{t.settings_logo_desc}</p>
+                     <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center overflow-hidden">
+                          {companyLogo ? (
+                            <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                          ) : (
+                            <ImageIcon className="text-slate-400" size={24} />
+                          )}
+                        </div>
+                        <label className="cursor-pointer bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition flex items-center gap-2">
+                           <Upload size={16} />
+                           {t.btn_upload_logo}
+                           <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                        </label>
+                     </div>
+                   </div>
                  </div>
               </div>
             )}
 
           </div>
         </div>
+
+        {/* Modal for New Course */}
+        {isNewCourseModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => setIsNewCourseModalOpen(false)}
+            ></div>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative z-10 animate-in fade-in zoom-in-95 duration-200">
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="text-lg font-bold text-slate-900">{lang === 'fa' ? 'تعریف دوره جدید' : 'New Course'}</h3>
+                 <button 
+                   onClick={() => setIsNewCourseModalOpen(false)}
+                   className="text-slate-400 hover:text-slate-600 transition"
+                 >
+                   <X size={20} />
+                 </button>
+               </div>
+               
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-2">
+                     {lang === 'fa' ? 'نام دوره آموزشی' : 'Course Title'}
+                   </label>
+                   <input 
+                     type="text" 
+                     value={newCourseName}
+                     onChange={(e) => setNewCourseName(e.target.value)}
+                     className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                     placeholder={lang === 'fa' ? 'مثال: ایمنی کار در ارتفاع' : 'e.g. Safety at Heights'}
+                   />
+                 </div>
+                 
+                 <div className="flex gap-3 pt-2">
+                   <button 
+                     onClick={() => setIsNewCourseModalOpen(false)}
+                     className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 transition"
+                   >
+                     {lang === 'fa' ? 'انصراف' : 'Cancel'}
+                   </button>
+                   <button 
+                     onClick={handleAddCourse}
+                     disabled={!newCourseName.trim()}
+                     className={`flex-1 py-3 rounded-xl bg-${theme}-600 text-white font-medium hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20 disabled:opacity-50`}
+                   >
+                     {lang === 'fa' ? 'ذخیره دوره' : 'Save Course'}
+                   </button>
+                 </div>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal for Employee Details & Certificate */}
+        {selectedEmployee && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => {
+                setSelectedEmployee(null);
+                setGeneratedCertUrl(null);
+              }}
+            ></div>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-0 relative z-10 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+               {/* Modal Header */}
+               <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                      <Users size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">{selectedEmployee.name}</h3>
+                      <p className="text-slate-500 text-sm">{selectedEmployee.department}</p>
+                    </div>
+                  </div>
+                  <button 
+                     onClick={() => {
+                       setSelectedEmployee(null);
+                       setGeneratedCertUrl(null);
+                     }}
+                     className="text-slate-400 hover:text-slate-600 transition"
+                   >
+                     <X size={24} />
+                   </button>
+               </div>
+
+               <div className="flex-1 overflow-y-auto p-6">
+                 {generatedCertUrl ? (
+                   <div className="flex flex-col items-center">
+                     <h4 className="font-bold text-lg mb-4 text-emerald-600 flex items-center gap-2">
+                       <CheckCircle size={20} />
+                       {t.cert_modal_title}
+                     </h4>
+                     <div className="w-full max-w-2xl bg-slate-100 p-2 rounded-xl shadow-inner mb-6">
+                       <img src={generatedCertUrl} alt="Certificate" className="w-full h-auto rounded-lg shadow-md" />
+                     </div>
+                     <button 
+                       onClick={() => setGeneratedCertUrl(null)}
+                       className="text-sm text-slate-500 hover:text-slate-800 underline"
+                     >
+                       {lang === 'fa' ? 'بازگشت به لیست' : 'Back to list'}
+                     </button>
+                   </div>
+                 ) : (
+                   <>
+                     <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                           <Award className="text-blue-600" size={20} />
+                           <h4 className="font-bold text-slate-800">{t.emp_history_title}</h4>
+                        </div>
+                        
+                        {/* Image Size and API Key Selector for Certificate Generation */}
+                        <div className="flex items-center gap-3">
+                           {!hasApiKey && (
+                             <button 
+                                onClick={handleSelectApiKey}
+                                className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100"
+                             >
+                               <KeyRound size={12} />
+                               {t.cert_select_api}
+                             </button>
+                           )}
+                           <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                             <span className="text-[10px] text-slate-500 pl-2">{t.cert_quality_label}</span>
+                             {(['1K', '2K', '4K'] as const).map(size => (
+                               <button
+                                 key={size}
+                                 onClick={() => setCertImageSize(size)}
+                                 className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                                   certImageSize === size ? 'bg-white shadow text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                                 }`}
+                               >
+                                 {size}
+                               </button>
+                             ))}
+                           </div>
+                        </div>
+                     </div>
+                     
+                     <div className="overflow-hidden rounded-xl border border-slate-200">
+                       <table className="w-full text-sm">
+                         <thead className="bg-slate-50 text-slate-500 font-medium">
+                           <tr>
+                             <th className="px-4 py-3 text-right">{t.emp_col_course}</th>
+                             <th className="px-4 py-3">{t.emp_col_date}</th>
+                             <th className="px-4 py-3">{t.emp_col_score}</th>
+                             <th className="px-4 py-3 text-center">{t.emp_col_cert}</th>
+                           </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-100">
+                           {selectedEmployee.completedCoursesList.map((course) => (
+                             <tr key={course.id} className="hover:bg-slate-50/50">
+                               <td className="px-4 py-3 font-medium text-slate-800">{course.name}</td>
+                               <td className="px-4 py-3 text-slate-600">{course.date}</td>
+                               <td className="px-4 py-3 text-slate-600">
+                                 <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${course.score >= 90 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                   {course.score}
+                                 </span>
+                               </td>
+                               <td className="px-4 py-3 text-center">
+                                 <button 
+                                   onClick={() => handleGenerateCertificate(course.name)}
+                                   disabled={isGeneratingCert}
+                                   className="text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1 mx-auto disabled:opacity-50"
+                                 >
+                                   {isGeneratingCert ? (
+                                     <Loader2 size={14} className="animate-spin" />
+                                   ) : (
+                                     <Award size={14} />
+                                   )}
+                                   {isGeneratingCert ? t.cert_generating : t.btn_generate_cert}
+                                 </button>
+                               </td>
+                             </tr>
+                           ))}
+                           {selectedEmployee.completedCoursesList.length === 0 && (
+                             <tr>
+                               <td colSpan={4} className="px-4 py-8 text-center text-slate-400 italic">
+                                 {lang === 'fa' ? 'هیچ دوره‌ای یافت نشد.' : 'No courses found.'}
+                               </td>
+                             </tr>
+                           )}
+                         </tbody>
+                       </table>
+                     </div>
+                   </>
+                 )}
+               </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
-}
+};
+
+export default App;

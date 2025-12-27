@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, LiveServerMessage, Modality, Type } from "@google/genai";
-import { Message, Language } from "../types";
+import { Message, Language, ImageSize } from "../types";
 
 const SYSTEM_INSTRUCTION_FA = `
 شما یک مشاور متخصص و ارشد آموزش و توسعه منابع انسانی در صنعت فولاد هستید.
@@ -108,6 +108,75 @@ export const suggestTrainingCourses = async (skillData: any, lang: Language = 'f
   } catch (error) {
     console.error("Course Suggestion Error:", error);
     throw new Error("Error generating suggestions.");
+  }
+};
+
+export const generateCertificate = async (
+  employeeName: string, 
+  courseName: string, 
+  logoBase64: string | null,
+  size: ImageSize = '1K',
+  lang: Language = 'fa'
+) => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    
+    const parts: any[] = [];
+    
+    if (logoBase64) {
+      // Clean up base64 string if it has the prefix
+      const base64Data = logoBase64.includes('base64,') ? logoBase64.split('base64,')[1] : logoBase64;
+      parts.push({
+        inlineData: {
+          mimeType: 'image/png', // Assuming user uploads png/jpeg. The model handles standard image mimes.
+          data: base64Data
+        }
+      });
+    }
+
+    const promptText = `
+    Create a high-quality, high-resolution, professional Certificate of Completion.
+    
+    Details:
+    - Recipient Name: "${employeeName}"
+    - Course Name: "${courseName}" (IMPORTANT: Extract and include the English name of the course if available, or translate it to English. The English name must be prominent).
+    - Design Style: Corporate, official, elegant borders (Blue/Gold theme fitting for a Steel Industry company).
+    - Texture: High-quality paper texture, printable quality.
+    
+    Structure:
+    - Header: "CERTIFICATE OF ACHIEVEMENT" or "CERTIFICATE OF COMPLETION".
+    - Logo: Incorporate the provided logo image at the top center or top left if provided.
+    - Signatures: Include two blank signature lines at the bottom labeled "CEO" and "Head of Training". LEAVE THE SIGNATURE SPACE EMPTY.
+    - Date: Include a placeholder for the date.
+    
+    Ensure the text is legible, sharp, and spelled correctly. The overall look should be premium and suitable for printing.
+    `;
+
+    parts.push({ text: promptText });
+
+    // Using gemini-3-pro-image-preview for high quality output and size control
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: parts
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "4:3",
+          imageSize: size // 1K, 2K, or 4K
+        }
+      }
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("No image generated");
+  } catch (error) {
+    console.error("Certificate Generation Error:", error);
+    throw new Error("Failed to generate certificate.");
   }
 };
 
