@@ -135,7 +135,8 @@ export const TRANSLATIONS = {
     emp_col_score: 'نمره',
     emp_col_cert: 'گواهینامه',
     btn_generate_cert: 'صدور مدرک هوشمند',
-    btn_import_excel: 'بارگذاری اکسل پرسنل',
+    btn_import_excel: 'بارگذاری لیست پرسنل',
+    btn_import_history: 'بارگذاری سوابق آموزشی',
     cert_generating: 'در حال طراحی گواهینامه...',
     cert_modal_title: 'گواهینامه پایان دوره',
     cert_quality_label: 'کیفیت تصویر:',
@@ -151,6 +152,12 @@ export const TRANSLATIONS = {
     listening: 'در حال گوش دادن...',
     listening_desc: 'می‌توانید به صورت طبیعی با هوش مصنوعی صحبت کنید.',
     input_placeholder: 'سوال خود را اینجا بنویسید...',
+    
+    // Reports
+    report_past_title: 'بارگذاری گزارشات فصول گذشته',
+    report_past_desc: 'فایل اکسل داده‌های تاریخی را جهت تحلیل و نمایش وارد کنید',
+    report_select_file: 'انتخاب فایل اکسل',
+    report_data_preview: 'داده‌های وارد شده',
     
     // Settings
     settings_title: 'تنظیمات سیستمی',
@@ -229,7 +236,8 @@ export const TRANSLATIONS = {
     emp_col_score: 'Score',
     emp_col_cert: 'Certificate',
     btn_generate_cert: 'Smart Certificate',
-    btn_import_excel: 'Import Staff Excel',
+    btn_import_excel: 'Import Staff List',
+    btn_import_history: 'Import History Records',
     cert_generating: 'Designing Certificate...',
     cert_modal_title: 'Completion Certificate',
     cert_quality_label: 'Image Quality:',
@@ -245,6 +253,12 @@ export const TRANSLATIONS = {
     listening: 'Listening...',
     listening_desc: 'You can speak naturally with the AI.',
     input_placeholder: 'Type your question here...',
+    
+    // Reports
+    report_past_title: 'Upload Past Reports',
+    report_past_desc: 'Import historical Excel data for analysis and display',
+    report_select_file: 'Select Excel File',
+    report_data_preview: 'Imported Data',
 
     // Settings
     settings_title: 'System Settings',

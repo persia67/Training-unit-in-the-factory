@@ -37,7 +37,9 @@ import {
   UserCog,
   ShieldCheck,
   Save,
-  Cloud
+  Cloud,
+  Table as TableIcon,
+  History
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -138,6 +140,8 @@ const App = () => {
   // Data State
   const [coursesList, setCoursesList] = useState(COURSES);
   const [employeesList, setEmployeesList] = useState<Employee[]>(EMPLOYEES);
+  const [pastReportData, setPastReportData] = useState<any[]>([]);
+  const [pastReportFileName, setPastReportFileName] = useState<string>('');
   
   // Modal & Action Menu State
   const [isNewCourseModalOpen, setIsNewCourseModalOpen] = useState(false);
@@ -262,6 +266,109 @@ const App = () => {
         alert(lang === 'fa' ? `${newEmployees.length} نفر با موفقیت اضافه شدند.` : `${newEmployees.length} employees added successfully.`);
       } catch (error) {
         console.error('Error parsing Excel:', error);
+        alert(lang === 'fa' ? 'خطا در خواندن فایل اکسل.' : 'Error reading Excel file.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleHistoryUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        setEmployeesList(prev => {
+            const updated = [...prev];
+            let recordsAdded = 0;
+            
+            jsonData.forEach((row: any) => {
+                // Normalize keys
+                const name = row['Name'] || row['نام'] || row['نام و نام خانوادگی'];
+                const course = row['Course'] || row['نام دوره'] || row['عنوان دوره'];
+                const date = row['Date'] || row['تاریخ'] || row['تاریخ برگزاری'];
+                const score = row['Score'] || row['نمره'];
+                const dept = row['Department'] || row['واحد'] || row['دپارتمان'];
+
+                if (name && course) {
+                    let emp = updated.find(e => e.name.trim() === name.trim());
+                    
+                    if (!emp) {
+                         // Create new employee if not found
+                         emp = {
+                            id: Date.now() + Math.random(),
+                            name: name.trim(),
+                            department: dept || 'General',
+                            coursesCompleted: 0,
+                            lastTraining: '-',
+                            completedCoursesList: []
+                         };
+                         updated.push(emp);
+                    }
+
+                    // Check for duplicate course record (optional, but good practice)
+                    const exists = emp.completedCoursesList.some(
+                        c => c.name === course && c.date === (date || '-')
+                    );
+
+                    if (!exists) {
+                        emp.completedCoursesList.push({
+                            id: Date.now() + Math.random(),
+                            name: course,
+                            date: date || '-',
+                            score: Number(score) || 0
+                        });
+                        recordsAdded++;
+                    }
+                    
+                    // Update aggregations
+                    emp.coursesCompleted = emp.completedCoursesList.length;
+                    if (date) emp.lastTraining = date;
+                }
+            });
+
+            if (recordsAdded === 0) {
+               alert(lang === 'fa' ? 'رکوردی اضافه نشد. لطفا فرمت فایل را بررسی کنید.' : 'No records added. Check file format.');
+               return prev; 
+            }
+            return updated;
+        });
+        
+        // Reset input
+        event.target.value = '';
+        
+        alert(lang === 'fa' ? 'سوابق با موفقیت بروزرسانی شد.' : 'Records updated successfully.');
+      } catch (error) {
+        console.error(error);
+        alert(lang === 'fa' ? 'خطا در خواندن فایل.' : 'Error reading file.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handlePastReportUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setPastReportFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+        setPastReportData(jsonData as any[]);
+      } catch (error) {
+        console.error('Error parsing Past Report Excel:', error);
         alert(lang === 'fa' ? 'خطا در خواندن فایل اکسل.' : 'Error reading Excel file.');
       }
     };
@@ -756,13 +863,24 @@ const App = () => {
                      <h3 className="text-xl font-bold text-slate-900">{t.emp_title}</h3>
                      <p className="text-slate-500 text-sm mt-1">{t.emp_subtitle}</p>
                    </div>
-                   {userRole === 'admin' && (
-                     <label className={`flex items-center gap-2 px-4 py-2.5 bg-${theme}-600 text-white rounded-xl cursor-pointer hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
-                       <FileSpreadsheet size={18} />
-                       <span className="text-sm font-medium">{t.btn_import_excel}</span>
-                       <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
-                     </label>
-                   )}
+                   
+                   <div className="flex gap-2">
+                      {userRole === 'admin' && (
+                        <label className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl cursor-pointer hover:bg-slate-50 transition shadow-sm`}>
+                          <Users size={18} />
+                          <span className="text-sm font-medium">{t.btn_import_excel}</span>
+                          <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
+                        </label>
+                      )}
+                      
+                      {userRole === 'admin' && (
+                         <label className={`flex items-center gap-2 px-4 py-2.5 bg-${theme}-600 text-white rounded-xl cursor-pointer hover:bg-${theme}-700 transition shadow-lg shadow-${theme}-500/20`}>
+                           <History size={18} />
+                           <span className="text-sm font-medium">{t.btn_import_history}</span>
+                           <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleHistoryUpload} />
+                         </label>
+                      )}
+                   </div>
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -793,81 +911,133 @@ const App = () => {
 
             {/* Reports View */}
             {activeTab === Tab.Reports && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
-                {/* Standard Reports Card */}
+              <div className="space-y-6 animate-in fade-in duration-500">
+                
+                {/* Past Season Report Upload */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className={`p-2 bg-${theme}-100 text-${theme}-600 rounded-lg`}>
-                      <FileBarChart className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900">{t.reports} (Standard)</h3>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {[
-                      { title: lang === 'fa' ? 'گزارش اثربخشی سالانه (کرک‌پاتریک)' : 'Annual Effectiveness Report (Kirkpatrick)', type: 'PDF' },
-                      { title: lang === 'fa' ? 'لیست نمرات و حضور و غیاب' : 'Attendance & Score List', type: 'Excel' },
-                      { title: lang === 'fa' ? 'تحلیل شکاف مهارتی' : 'Skill Gap Analysis', type: 'PDF' },
-                      { title: lang === 'fa' ? 'گزارش بازگشت سرمایه (ROI)' : 'Training ROI Statement', type: 'PPT' },
-                    ].map((report, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-300 transition group cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-white p-2 rounded-lg border border-slate-200 text-slate-500 group-hover:text-blue-600 transition">
-                            <FileText size={18} />
-                          </div>
-                          <span className="font-medium text-slate-700 text-sm">{report.title}</span>
+                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 bg-indigo-100 text-indigo-600 rounded-lg`}>
+                          <TableIcon className="w-6 h-6" />
                         </div>
-                        <button className="text-slate-400 group-hover:text-blue-600 transition">
-                          <Download size={18} />
-                        </button>
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900">{t.report_past_title}</h3>
+                          <p className="text-sm text-slate-500">{t.report_past_desc}</p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                      <label className={`flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl cursor-pointer hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/20`}>
+                       <FileSpreadsheet size={18} />
+                       <span className="text-sm font-medium">{t.report_select_file}</span>
+                       <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handlePastReportUpload} />
+                     </label>
+                   </div>
+                   
+                   {pastReportData.length > 0 && (
+                     <div className="border rounded-xl overflow-hidden bg-slate-50">
+                        <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                           <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{t.report_data_preview}</span>
+                           <span className="text-xs text-slate-500">{pastReportFileName}</span>
+                        </div>
+                        <div className="overflow-x-auto max-h-64">
+                          <table className="w-full text-sm text-left">
+                            <thead className="bg-white text-slate-500 font-medium border-b border-slate-200">
+                              <tr>
+                                {Object.keys(pastReportData[0]).map((key) => (
+                                  <th key={key} className="px-4 py-3 whitespace-nowrap">{key}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 bg-white">
+                              {pastReportData.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                  {Object.values(row).map((val: any, i) => (
+                                    <td key={i} className="px-4 py-3 whitespace-nowrap text-slate-700">{val}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                     </div>
+                   )}
                 </div>
 
-                {/* Custom Report Builder */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className={`p-2 bg-emerald-100 text-emerald-600 rounded-lg`}>
-                      <Filter className="w-6 h-6" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Standard Reports Card */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className={`p-2 bg-${theme}-100 text-${theme}-600 rounded-lg`}>
+                        <FileBarChart className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">{t.reports} (Standard)</h3>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">{lang === 'fa' ? 'سازنده گزارش سفارشی' : 'Custom Report Builder'}</h3>
+                    
+                    <div className="space-y-3">
+                      {[
+                        { title: lang === 'fa' ? 'گزارش اثربخشی سالانه (کرک‌پاتریک)' : 'Annual Effectiveness Report (Kirkpatrick)', type: 'PDF' },
+                        { title: lang === 'fa' ? 'لیست نمرات و حضور و غیاب' : 'Attendance & Score List', type: 'Excel' },
+                        { title: lang === 'fa' ? 'تحلیل شکاف مهارتی' : 'Skill Gap Analysis', type: 'PDF' },
+                        { title: lang === 'fa' ? 'گزارش بازگشت سرمایه (ROI)' : 'Training ROI Statement', type: 'PPT' },
+                      ].map((report, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-300 transition group cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-white p-2 rounded-lg border border-slate-200 text-slate-500 group-hover:text-blue-600 transition">
+                              <FileText size={18} />
+                            </div>
+                            <span className="font-medium text-slate-700 text-sm">{report.title}</span>
+                          </div>
+                          <button className="text-slate-400 group-hover:text-blue-600 transition">
+                            <Download size={18} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'واحد سازمانی' : 'Department'}</label>
-                      <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                        <option>{lang === 'fa' ? 'همه واحدها' : 'All Departments'}</option>
-                        <option>Production</option>
-                        <option>Quality Control</option>
-                        <option>Technical</option>
-                        <option>HR</option>
-                      </select>
+                  {/* Custom Report Builder */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className={`p-2 bg-emerald-100 text-emerald-600 rounded-lg`}>
+                        <Filter className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">{lang === 'fa' ? 'سازنده گزارش سفارشی' : 'Custom Report Builder'}</h3>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-5">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'از تاریخ' : 'From Date'}</label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                          <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                        </div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'واحد سازمانی' : 'Department'}</label>
+                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                          <option>{lang === 'fa' ? 'همه واحدها' : 'All Departments'}</option>
+                          <option>Production</option>
+                          <option>Quality Control</option>
+                          <option>Technical</option>
+                          <option>HR</option>
+                        </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'تا تاریخ' : 'To Date'}</label>
-                         <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                          <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="pt-4">
-                      <button className={`w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2`}>
-                        <Search size={18} />
-                        {lang === 'fa' ? 'تولید گزارش' : 'Generate Report'}
-                      </button>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'از تاریخ' : 'From Date'}</label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">{lang === 'fa' ? 'تا تاریخ' : 'To Date'}</label>
+                           <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4">
+                        <button className={`w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2`}>
+                          <Search size={18} />
+                          {lang === 'fa' ? 'تولید گزارش' : 'Generate Report'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

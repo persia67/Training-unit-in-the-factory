@@ -10,12 +10,14 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false // Required for loading local resources in some setups, strictly for dev/demo
+      webSecurity: false
     }
   });
 
-  // Load the index.html of the app.
-  mainWindow.loadFile(path.join(__dirname, '../index.html'));
+  // Load the built index.html from the dist folder
+  // When running 'npm run dev', you might want to load http://localhost:5173 instead
+  // But for the compiled exe, we load the file.
+  mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
 
   // Remove the default menu bar
   mainWindow.setMenuBarVisibility(false);
