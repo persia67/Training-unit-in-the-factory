@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, LiveServerMessage, Modality, Type } from "@google/genai";
-import { Message, Language, ImageSize } from "../types";
+import { Message, Language, ImageSize, ContentGenerationRequest } from "../types";
 
 const SYSTEM_INSTRUCTION_FA = `
 شما یک مشاور متخصص و ارشد آموزش و توسعه منابع انسانی در صنعت فولاد هستید.
@@ -185,6 +185,67 @@ export const generateCertificate = async (
   }
 };
 
+export const generateTrainingVideo = async (req: ContentGenerationRequest, lang: Language) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+
+  const prompt = lang === 'fa' 
+    ? `یک ویدیوی آموزشی کوتاه و حرفه‌ای برای کارکنان صنعت فولاد. موضوع: ${req.topic}. مخاطب: ${req.targetAudience}. توضیحات: ${req.description}. سبک: واقع‌گرایانه، سینمایی، محیط کارخانه فولاد، ایمن.`
+    : `A short professional training video for steel industry workers. Topic: ${req.topic}. Audience: ${req.targetAudience}. Description: ${req.description}. Style: Realistic, cinematic, steel factory environment, safety focused.`;
+
+  try {
+    let operation = await ai.models.generateVideos({
+      model: 'veo-3.1-fast-generate-preview',
+      prompt: prompt,
+      config: {
+        numberOfVideos: 1,
+        resolution: '720p',
+        aspectRatio: '16:9'
+      }
+    });
+
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5s
+      operation = await ai.operations.getVideosOperation({operation: operation});
+    }
+
+    const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (!videoUri) throw new Error("Video generation failed.");
+    
+    // We return the raw URI. The frontend must fetch it with the API Key appended.
+    return videoUri;
+
+  } catch (error) {
+    console.error("Veo API Error:", error);
+    throw new Error("Video generation failed.");
+  }
+};
+
+export const generateTrainingDocument = async (req: ContentGenerationRequest, lang: Language) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  
+  let prompt = '';
+  if (req.format === 'pamphlet') {
+    prompt = lang === 'fa' 
+       ? `یک جزوه آموزشی کامل و ساختاریافته بنویس. موضوع: ${req.topic}. مخاطب: ${req.targetAudience}. توضیحات: ${req.description}. خروجی باید فرمت Markdown داشته باشد با تیترها، بولت‌پوینت‌ها و پاراگراف‌های توضیحی.`
+       : `Write a complete and structured training pamphlet. Topic: ${req.topic}. Audience: ${req.targetAudience}. Description: ${req.description}. Output must be in Markdown format with headers, bullet points, and explanatory paragraphs.`;
+  } else {
+    prompt = lang === 'fa'
+       ? `یک طرح کلی (Outline) دقیق برای اسلایدهای پاورپوینت بنویس. موضوع: ${req.topic}. مخاطب: ${req.targetAudience}. توضیحات: ${req.description}. برای هر اسلاید، عنوان و متن‌های کلیدی (Bullet points) را بنویس. خروجی Markdown باشد.`
+       : `Write a detailed PowerPoint slide outline. Topic: ${req.topic}. Audience: ${req.targetAudience}. Description: ${req.description}. For each slide, provide the Title and Key Bullet Points. Output in Markdown.`;
+  }
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: prompt,
+    config: {
+       temperature: 0.5
+    }
+  });
+
+  return response.text || "";
+};
+
+
 /* --- Live API Implementation --- */
 
 export class GeminiLiveSession {
@@ -206,12 +267,36 @@ export class GeminiLiveSession {
         throw new Error(this.lang === 'fa' ? "مرورگر شما از ضبط صدا پشتیبانی نمی‌کند." : "Your browser does not support audio recording.");
     }
 
+    // Attempt to verify microphone presence
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasMic = devices.some(d => d.kind === 'audioinput');
+        if (!hasMic) {
+            throw new Error(this.lang === 'fa' ? "میکروفونی یافت نشد." : "No microphone found.");
+        }
+    } catch (e) {
+        // Fallthrough if enumeration is restricted, getUserMedia will throw the definitive error
+        if (e instanceof Error && (e.message.includes("found") || e.message.includes("یافت"))) {
+             throw e;
+        }
+    }
+
     let stream: MediaStream;
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
+    } catch (err: any) {
         console.error("Microphone access failed:", err);
-        throw new Error(this.lang === 'fa' ? "دسترسی به میکروفون امکان‌پذیر نیست. لطفا اتصال یا مجوزها را بررسی کنید." : "Microphone not found or permission denied.");
+        let msg = this.lang === 'fa' ? "دسترسی به میکروفون امکان‌پذیر نیست." : "Microphone access failed.";
+        
+        if (err.name === 'NotFoundError' || err.message?.includes('not found') || err.message?.includes('Requested device')) {
+            msg = this.lang === 'fa' ? "میکروفونی یافت نشد." : "No microphone device found.";
+        } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            msg = this.lang === 'fa' ? "دسترسی به میکروفون رد شد." : "Microphone permission denied.";
+        } else if (err.name === 'NotReadableError') {
+             msg = this.lang === 'fa' ? "میکروفون در دسترس نیست (شاید توسط برنامه دیگری استفاده می‌شود)." : "Microphone is busy/unreadable.";
+        }
+
+        throw new Error(msg);
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -261,7 +346,10 @@ export class GeminiLiveSession {
           }
         },
         onclose: () => onClose(),
-        onerror: (err) => onClose()
+        onerror: (err) => {
+            console.error("Session error:", err);
+            onClose();
+        }
       }
     });
   }

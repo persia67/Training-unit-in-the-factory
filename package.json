@@ -12,7 +12,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "tauri": "tauri"
   },
   "build": {
     "appId": "com.danialsteel.lms",
@@ -47,6 +48,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^1.6.0",
+    "@tauri-apps/cli": "^1.6.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

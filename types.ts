@@ -43,6 +43,26 @@ export interface SystemSettings {
   logo: string | null;
 }
 
+export type Season = 'Spring' | 'Summer' | 'Fall' | 'Winter';
+
+export interface SeasonalData {
+  [year: string]: {
+    pattern: string[]; // Column headers extracted from the first upload
+    seasons: {
+      [key in Season]?: any[]; // Array of row objects
+    }
+  }
+}
+
+export type ContentFormat = 'video' | 'pamphlet' | 'powerpoint';
+
+export interface ContentGenerationRequest {
+  topic: string;
+  description: string;
+  targetAudience: string;
+  format: ContentFormat;
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

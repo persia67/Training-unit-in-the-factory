@@ -1,6 +1,6 @@
 import { Course, Employee, Language } from './types';
 
-export const APP_VERSION = '1.4.1';
+export const APP_VERSION = '1.5.1';
 
 export const COURSES: Course[] = [
   { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', type: 'internal', participants: 45, completion: 78, status: 'active' },
@@ -109,6 +109,7 @@ export const TRANSLATIONS = {
     course_manage_title: 'مدیریت دوره‌های آموزشی',
     course_manage_subtitle: 'لیست دوره‌های تخصصی، عمومی و ایمنی شرکت',
     btn_new_course: 'تعریف دوره جدید',
+    btn_edit_course: 'ویرایش دوره',
     filter_status: 'فیلتر وضعیت:',
     filter_all: 'همه دوره‌ها',
     filter_active: 'در حال برگزاری',
@@ -123,6 +124,8 @@ export const TRANSLATIONS = {
     col_status: 'وضعیت',
     col_actions: 'مدیریت',
     view_details: 'مشاهده جزئیات',
+    save_changes: 'ذخیره تغییرات',
+    field_progress: 'درصد تکمیل دوره',
 
     // Employees
     emp_title: 'مدیریت سوابق کارکنان',
@@ -152,12 +155,47 @@ export const TRANSLATIONS = {
     listening: 'در حال گوش دادن...',
     listening_desc: 'می‌توانید به صورت طبیعی با هوش مصنوعی صحبت کنید.',
     input_placeholder: 'سوال خود را اینجا بنویسید...',
+    ai_mode_chat: 'گفتگوی هوشمند',
+    ai_mode_studio: 'استودیو محتوا',
+    studio_title: 'تولید محتوای آموزشی',
+    studio_desc: 'ساخت فیلم، جزوه و اسلاید آموزشی با هوش مصنوعی',
+    field_topic: 'موضوع آموزش',
+    field_description: 'شرح مختصر و نکات کلیدی',
+    field_audience: 'مخاطبین هدف',
+    field_format: 'فرمت خروجی',
+    format_video: 'فیلم آموزشی (Video)',
+    format_pamphlet: 'جزوه آموزشی (Pamphlet)',
+    format_ppt: 'پاورپوینت (PowerPoint Outline)',
+    btn_generate_content: 'تولید محتوا',
+    generating_content: 'در حال تولید محتوا...',
+    download_content: 'دانلود فایل',
     
     // Reports
-    report_past_title: 'بارگذاری گزارشات فصول گذشته',
-    report_past_desc: 'فایل اکسل داده‌های تاریخی را جهت تحلیل و نمایش وارد کنید',
-    report_select_file: 'انتخاب فایل اکسل',
-    report_data_preview: 'داده‌های وارد شده',
+    report_past_title: 'تعریف فرمت گزارش اولویت‌دار',
+    report_past_desc: 'یک نمونه فایل اکسل با فرمت مورد نظر خود را بارگذاری کنید تا هوش مصنوعی طبق آن تحلیل کند',
+    report_select_file: 'بارگذاری قالب (Template)',
+    report_data_preview: 'پیش‌نمایش ساختار فایل اولویت‌دار',
+    report_status_defined: 'ساختار گزارش اولویت‌دار شناسایی شد',
+    btn_analyze_template: 'تحلیل انطباق با فرمت',
+    
+    // Seasonal Reports
+    seasonal_title: 'آرشیو و تحلیل آمار فصلی',
+    seasonal_subtitle: 'مدیریت داده‌های آماری فصول مختلف و تحلیل روند سالیانه',
+    btn_add_year: 'افزودن سال مالی',
+    season_spring: 'بهار',
+    season_summer: 'تابستان',
+    season_fall: 'پاییز',
+    season_winter: 'زمستان',
+    btn_upload_excel: 'بارگذاری فایل اکسل',
+    btn_manual_entry: 'ورود دستی (طبق الگو)',
+    btn_view_analysis: 'مشاهده تحلیل',
+    no_data: 'داده‌ای موجود نیست',
+    pattern_detected: 'الگوی آماری شناسایی شده است',
+    data_analysis_title: 'تحلیل داده‌های آماری',
+    charts_title: 'نمودارهای تحلیلی',
+    data_table_title: 'جدول داده‌ها',
+    save_data: 'ذخیره داده‌ها',
+    enter_data_for: 'ورود داده برای',
     
     // Settings
     settings_title: 'تنظیمات سیستمی',
@@ -210,6 +248,7 @@ export const TRANSLATIONS = {
     course_manage_title: 'Course Management',
     course_manage_subtitle: 'List of specialized, general, and safety courses',
     btn_new_course: 'New Course',
+    btn_edit_course: 'Edit Course',
     filter_status: 'Status Filter:',
     filter_all: 'All Courses',
     filter_active: 'Active',
@@ -224,6 +263,8 @@ export const TRANSLATIONS = {
     col_status: 'Status',
     col_actions: 'Actions',
     view_details: 'View Details',
+    save_changes: 'Save Changes',
+    field_progress: 'Course Progress %',
 
     // Employees
     emp_title: 'Employee Records',
@@ -253,12 +294,47 @@ export const TRANSLATIONS = {
     listening: 'Listening...',
     listening_desc: 'You can speak naturally with the AI.',
     input_placeholder: 'Type your question here...',
+    ai_mode_chat: 'Smart Chat',
+    ai_mode_studio: 'Content Studio',
+    studio_title: 'Training Content Studio',
+    studio_desc: 'Generate Videos, Pamphlets, and Slides with AI',
+    field_topic: 'Training Topic',
+    field_description: 'Description & Key Points',
+    field_audience: 'Target Audience',
+    field_format: 'Output Format',
+    format_video: 'Training Video',
+    format_pamphlet: 'Pamphlet (Text)',
+    format_ppt: 'PowerPoint Outline',
+    btn_generate_content: 'Generate Content',
+    generating_content: 'Generating content...',
+    download_content: 'Download File',
     
     // Reports
-    report_past_title: 'Upload Past Reports',
-    report_past_desc: 'Import historical Excel data for analysis and display',
-    report_select_file: 'Select Excel File',
-    report_data_preview: 'Imported Data',
+    report_past_title: 'Define Priority Report Format',
+    report_past_desc: 'Upload a sample Excel file with your desired format for AI to prioritize and follow',
+    report_select_file: 'Upload Template',
+    report_data_preview: 'Priority Format Structure Preview',
+    report_status_defined: 'Priority Format Identified',
+    btn_analyze_template: 'Analyze Format Alignment',
+    
+    // Seasonal Reports
+    seasonal_title: 'Seasonal Statistics Archive',
+    seasonal_subtitle: 'Manage seasonal data and analyze annual trends',
+    btn_add_year: 'Add Fiscal Year',
+    season_spring: 'Spring',
+    season_summer: 'Summer',
+    season_fall: 'Fall',
+    season_winter: 'Winter',
+    btn_upload_excel: 'Upload Excel',
+    btn_manual_entry: 'Manual Entry (Template)',
+    btn_view_analysis: 'View Analysis',
+    no_data: 'No Data Available',
+    pattern_detected: 'Statistical Pattern Detected',
+    data_analysis_title: 'Statistical Data Analysis',
+    charts_title: 'Analytical Charts',
+    data_table_title: 'Data Table',
+    save_data: 'Save Data',
+    enter_data_for: 'Enter Data For',
 
     // Settings
     settings_title: 'System Settings',
