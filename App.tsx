@@ -63,7 +63,9 @@ import {
   Presentation,
   Clapperboard,
   MessageSquare,
-  Wand2
+  Wand2,
+  HardHat,
+  Code2
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -82,7 +84,7 @@ const App = () => {
   const [lang, setLang] = useState<Language>(() => (localStorage.getItem('app_lang') as Language) || 'fa');
   const [theme, setTheme] = useState<ThemeColor>(() => (localStorage.getItem('app_theme') as ThemeColor) || 'blue');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>('admin');
+  const [userRole, setUserRole] = useState<UserRole>('developer');
   
   // Settings State with Persistence
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
@@ -193,6 +195,10 @@ const App = () => {
 
   const t = TRANSLATIONS[lang];
   const isRTL = lang === 'fa';
+
+  // Access Control Helpers
+  const canEditContent = ['developer', 'training_manager'].includes(userRole);
+  const canEditSettings = ['developer', 'factory_manager'].includes(userRole);
 
   useEffect(() => {
     document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
@@ -588,16 +594,6 @@ const App = () => {
       if (genForm.format === 'video') {
          // Veo logic
          const videoUri = await generateTrainingVideo(genForm, lang);
-         // The service returns the raw URI, we need to append the key in the fetch or just link to it if possible.
-         // Since the instruction says: fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-         // We'll simulate the download availability by storing the URI.
-         // NOTE: The URI needs the key to be accessible. We can't easily expose process.env.API_KEY here securely if not already handled.
-         // However, the instructions imply we can fetch it. For now, we will store the URI and append key on download click if we were in a node environment, 
-         // but since this is client side, we rely on the service logic.
-         // Actually, let's just fetch it in the browser if possible or show the link.
-         // Wait, we can't inject process.env.API_KEY into the client side variable easily without exposing it.
-         // Assuming the service handles the fetching or proxying isn't possible here.
-         // We will store the URI. 
          setGeneratedContentUrl(videoUri);
       } else {
          // Text/PPT logic
@@ -619,16 +615,7 @@ const App = () => {
     if (!generatedContentUrl) return;
     
     if (genForm.format === 'video') {
-       // For Veo, we need to fetch the bytes and save.
-       // We'll need the user to re-select or we assume the environment has the key.
-       // Since this is a specialized prompt, let's assume the user clicks and we try to open it or fetch it.
-       // Limitation: We can't access process.env.API_KEY in the browser for the fetch URL unless Vite exposes it (VITE_API_KEY), 
-       // but the prompt says it's injected automatically.
-       // Let's try to fetch with the key if available in the global scope or just open.
        try {
-          // Construct URL with key if we can, otherwise just try.
-          // Note: Realistically, in a browser app without a backend proxy, this exposes the key in the network tab.
-          // We will attempt to use a placeholder approach for the key if not visible.
           const apiKey = process.env.API_KEY || ''; 
           const response = await fetch(`${generatedContentUrl}&key=${apiKey}`);
           const blob = await response.blob();
@@ -798,30 +785,36 @@ const App = () => {
                <UserCog size={10} />
                {t.switch_role}
              </label>
-             <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
+             <div className="flex flex-col gap-1 bg-slate-900 rounded-lg p-1">
                 <button 
-                  onClick={() => setUserRole('admin')}
-                  className={`flex-1 py-1.5 rounded-md text-[10px] font-medium transition ${userRole === 'admin' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                  onClick={() => setUserRole('developer')}
+                  className={`w-full py-1.5 px-2 rounded-md text-[10px] font-medium transition flex items-center gap-2 ${userRole === 'developer' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
                 >
-                  Admin
+                  <Code2 size={12}/> {t.role_developer}
+                </button>
+                <button 
+                  onClick={() => setUserRole('factory_manager')}
+                  className={`w-full py-1.5 px-2 rounded-md text-[10px] font-medium transition flex items-center gap-2 ${userRole === 'factory_manager' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                >
+                  <Building2 size={12}/> {t.role_factory_manager}
                 </button>
                 <button 
                   onClick={() => setUserRole('training_manager')}
-                  className={`flex-1 py-1.5 rounded-md text-[10px] font-medium transition ${userRole === 'training_manager' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                  className={`w-full py-1.5 px-2 rounded-md text-[10px] font-medium transition flex items-center gap-2 ${userRole === 'training_manager' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-300'}`}
                 >
-                  Manager
+                  <HardHat size={12}/> {t.role_training_manager}
                 </button>
              </div>
           </div>
 
           <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
             <div className="flex items-center gap-3 mb-3">
-              <div className={`w-8 h-8 rounded-full bg-${userRole === 'admin' ? theme : 'emerald'}-500 flex items-center justify-center text-xs font-bold`}>
-                {userRole === 'admin' ? 'AD' : 'TM'}
+              <div className={`w-8 h-8 rounded-full bg-${userRole === 'developer' ? 'indigo' : userRole === 'factory_manager' ? 'amber' : 'emerald'}-500 flex items-center justify-center text-xs font-bold text-white uppercase`}>
+                {userRole === 'developer' ? 'DV' : userRole === 'factory_manager' ? 'FM' : 'TM'}
               </div>
               <div className="overflow-hidden">
-                <p className="text-xs font-semibold truncate">
-                  {userRole === 'admin' ? t.role_admin : t.role_training_manager}
+                <p className="text-xs font-semibold truncate text-white">
+                  {userRole === 'developer' ? t.role_developer : userRole === 'factory_manager' ? t.role_factory_manager : t.role_training_manager}
                 </p>
               </div>
             </div>
@@ -970,7 +963,7 @@ const App = () => {
                         </button>
                       ))}
                     </div>
-                    {userRole === 'admin' && (
+                    {canEditContent && (
                       <button onClick={() => openCourseModal()} className={`bg-${theme}-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-${theme}-700 flex items-center gap-2`}>
                         <Plus size={16} /> {t.btn_new_course}
                       </button>
@@ -1015,7 +1008,7 @@ const App = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right relative">
-                            {userRole === 'admin' && (
+                            {canEditContent && (
                               <button onClick={(e) => { e.stopPropagation(); setOpenActionMenuId(openActionMenuId === course.id ? null : course.id); }} className="text-slate-400 hover:text-blue-600 p-1 rounded-full hover:bg-slate-100 transition">
                                 <MoreVertical size={18} />
                               </button>
@@ -1051,13 +1044,13 @@ const App = () => {
                      <p className="text-slate-500 text-sm mt-1">{t.emp_subtitle}</p>
                    </div>
                    <div className="flex gap-2">
-                      {userRole === 'admin' && (
+                      {canEditContent && (
                         <label className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl cursor-pointer hover:bg-slate-50 transition shadow-sm`}>
                           <Users size={18} /> <span className="text-sm font-medium">{t.btn_import_excel}</span>
                           <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
                         </label>
                       )}
-                      {userRole === 'admin' && (
+                      {canEditContent && (
                          <label className={`flex items-center gap-2 px-4 py-2.5 bg-${theme}-600 text-white rounded-xl cursor-pointer hover:bg-${theme}-700 transition shadow-lg`}>
                            <History size={18} /> <span className="text-sm font-medium">{t.btn_import_history}</span>
                            <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleHistoryUpload} />
@@ -1114,9 +1107,11 @@ const App = () => {
                           </select>
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                         </div>
-                        <button onClick={handleAddYear} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-800 transition">
-                           <Plus size={16} /> {t.btn_add_year}
-                        </button>
+                        {canEditContent && (
+                          <button onClick={handleAddYear} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-800 transition">
+                             <Plus size={16} /> {t.btn_add_year}
+                          </button>
+                        )}
                      </div>
                   </div>
 
@@ -1143,24 +1138,33 @@ const App = () => {
                                >
                                  {t.btn_view_analysis}
                                </button>
-                               <label className="block w-full text-center py-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">
-                                  {lang === 'fa' ? 'بروزرسانی' : 'Update'}
-                                  <input type="file" className="hidden" accept=".xlsx, .xls" onChange={(e) => handleSeasonalUpload(e, season)} />
-                               </label>
+                               {canEditContent && (
+                                 <label className="block w-full text-center py-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">
+                                    {lang === 'fa' ? 'بروزرسانی' : 'Update'}
+                                    <input type="file" className="hidden" accept=".xlsx, .xls" onChange={(e) => handleSeasonalUpload(e, season)} />
+                                 </label>
+                               )}
                              </div>
                            ) : (
                              <div className="space-y-2">
-                               <label className="flex items-center justify-center gap-2 w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition cursor-pointer">
-                                  <Upload size={14} /> {t.btn_upload_excel}
-                                  <input type="file" className="hidden" accept=".xlsx, .xls" onChange={(e) => handleSeasonalUpload(e, season)} />
-                               </label>
-                               <button 
-                                 onClick={() => handleManualEntryOpen(season)}
-                                 disabled={!hasPattern}
-                                 className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                               >
-                                 {t.btn_manual_entry}
-                               </button>
+                               {canEditContent && (
+                                 <>
+                                   <label className="flex items-center justify-center gap-2 w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition cursor-pointer">
+                                      <Upload size={14} /> {t.btn_upload_excel}
+                                      <input type="file" className="hidden" accept=".xlsx, .xls" onChange={(e) => handleSeasonalUpload(e, season)} />
+                                   </label>
+                                   <button 
+                                     onClick={() => handleManualEntryOpen(season)}
+                                     disabled={!hasPattern}
+                                     className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                   >
+                                     {t.btn_manual_entry}
+                                   </button>
+                                 </>
+                               )}
+                               {!canEditContent && (
+                                 <p className="text-xs text-center text-slate-400 py-2">{t.no_data}</p>
+                               )}
                              </div>
                            )}
                         </div>
@@ -1248,11 +1252,13 @@ const App = () => {
                             <span className="text-sm font-medium">{t.btn_analyze_template}</span>
                           </button>
                         )}
-                        <label className={`flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl cursor-pointer hover:bg-amber-700 transition shadow-lg shadow-amber-500/20`}>
-                          <FileSpreadsheet size={18} />
-                          <span className="text-sm font-medium">{t.report_select_file}</span>
-                          <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handlePastReportUpload} />
-                        </label>
+                        {canEditContent && (
+                          <label className={`flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl cursor-pointer hover:bg-amber-700 transition shadow-lg shadow-amber-500/20`}>
+                            <FileSpreadsheet size={18} />
+                            <span className="text-sm font-medium">{t.report_select_file}</span>
+                            <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handlePastReportUpload} />
+                          </label>
+                        )}
                       </div>
                    </div>
 
@@ -1477,16 +1483,16 @@ const App = () => {
                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
                       <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-2"><Building2 size={16} /> {t.settings_org_info}</h4>
                       <div className="grid gap-4">
-                        <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_company_name}</label><input type="text" value={systemSettings.companyName} onChange={(e) => handleSettingsChange('companyName', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" disabled={userRole !== 'admin'}/></div>
+                        <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_company_name}</label><input type="text" value={systemSettings.companyName} onChange={(e) => handleSettingsChange('companyName', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none disabled:bg-slate-100 disabled:text-slate-500" disabled={!canEditSettings}/></div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_ceo_name}</label><input type="text" value={systemSettings.ceoName} onChange={(e) => handleSettingsChange('ceoName', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" disabled={userRole !== 'admin'}/></div>
-                           <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_manager_name}</label><input type="text" value={systemSettings.trainingManagerName} onChange={(e) => handleSettingsChange('trainingManagerName', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" disabled={userRole !== 'admin'}/></div>
+                           <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_ceo_name}</label><input type="text" value={systemSettings.ceoName} onChange={(e) => handleSettingsChange('ceoName', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none disabled:bg-slate-100 disabled:text-slate-500" disabled={!canEditSettings}/></div>
+                           <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_manager_name}</label><input type="text" value={systemSettings.trainingManagerName} onChange={(e) => handleSettingsChange('trainingManagerName', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none disabled:bg-slate-100 disabled:text-slate-500" disabled={!canEditSettings}/></div>
                         </div>
                         <div>
                            <label className="block text-sm font-medium text-slate-700 mb-2">{t.settings_logo}</label>
                            <div className="flex items-center gap-4">
                               <div className="w-16 h-16 bg-white rounded-lg border border-dashed border-slate-300 flex items-center justify-center overflow-hidden">{systemSettings.logo ? <img src={systemSettings.logo} alt="Logo" className="w-full h-full object-contain" /> : <ImageIcon className="text-slate-400" size={24} />}</div>
-                              {userRole === 'admin' && <label className="cursor-pointer bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><Upload size={16} /> {t.btn_upload_logo}<input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} /></label>}
+                              {canEditSettings && <label className="cursor-pointer bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><Upload size={16} /> {t.btn_upload_logo}<input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} /></label>}
                            </div>
                         </div>
                       </div>
@@ -1498,7 +1504,7 @@ const App = () => {
                        <div><label className="block text-sm font-medium text-slate-700 mb-2">{t.theme_select}</label><div className="flex gap-3">{['blue', 'emerald', 'violet', 'rose', 'amber'].map((c) => <button key={c} onClick={() => setTheme(c as ThemeColor)} className={`w-8 h-8 rounded-full bg-${c}-500 ring-offset-2 transition-transform hover:scale-110 ${theme === c ? 'ring-2 ring-slate-400 scale-110' : ''}`} />)}</div></div>
                      </div>
                    </div>
-                   {userRole === 'admin' && (
+                   {canEditSettings && (
                      <div className="flex gap-3 pt-4 items-center">
                         <div className={`flex items-center gap-2 text-${theme}-600 bg-${theme}-50 px-4 py-2 rounded-lg transition-all duration-500 ease-in-out ${showSaveIndicator ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}><CheckCircle size={18} /> <span className="text-sm font-medium">{lang === 'fa' ? 'تغییرات به صورت خودکار ذخیره شد' : 'Changes saved automatically'}</span></div>
                      </div>

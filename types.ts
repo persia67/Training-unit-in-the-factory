@@ -34,7 +34,7 @@ export enum Tab {
 export type Language = 'fa' | 'en';
 export type ThemeColor = 'blue' | 'emerald' | 'violet' | 'rose' | 'amber';
 export type ImageSize = '1K' | '2K' | '4K';
-export type UserRole = 'admin' | 'training_manager';
+export type UserRole = 'developer' | 'factory_manager' | 'training_manager';
 
 export interface SystemSettings {
   companyName: string;

@@ -1,6 +1,6 @@
 import { Course, Employee, Language } from './types';
 
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.6.0';
 
 export const COURSES: Course[] = [
   { id: 1, name: 'ایمنی صنعتی در خط نورد (Industrial Safety)', type: 'internal', participants: 45, completion: 78, status: 'active' },
@@ -84,9 +84,10 @@ export const TRANSLATIONS = {
     ai: 'مشاور هوشمند',
     settings: 'تنظیمات سیستم',
     search_placeholder: 'جستجو در سامانه...',
-    role_admin: 'مدیریت کل',
+    role_developer: 'توسعه‌دهنده (Developer)',
+    role_factory_manager: 'مدیر کارخانه',
     role_training_manager: 'مسئول آموزش',
-    switch_role: 'تغییر نقش کاربری',
+    switch_role: 'سطح دسترسی',
     logout: 'خروج از سامانه',
     department: 'واحد توسعه سرمایه انسانی',
     company: 'شرکت دانیال استیل',
@@ -223,9 +224,10 @@ export const TRANSLATIONS = {
     ai: 'AI Consultant',
     settings: 'Settings',
     search_placeholder: 'Search system...',
-    role_admin: 'CEO / Admin',
+    role_developer: 'Developer',
+    role_factory_manager: 'Factory Manager',
     role_training_manager: 'Training Manager',
-    switch_role: 'Switch Role',
+    switch_role: 'Access Level',
     logout: 'Logout',
     department: 'Human Capital Development',
     company: 'Danial Steel Co.',
