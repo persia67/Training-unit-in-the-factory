@@ -18,6 +18,9 @@ export default defineConfig({
   // `TAURI_PLATFORM_VERSION`, `TAURI_PLATFORM_TYPE` and `TAURI_DEBUG`
   // env variables
   envPrefix: ['VITE_', 'TAURI_'],
+  define: {
+    'process.env': process.env
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
