@@ -54,6 +54,43 @@ export interface SeasonalData {
   }
 }
 
+// New Interface for Departmental Reporting
+export interface DepartmentReportRow {
+  id: number;
+  courseName: string;
+  participants: number;
+  costPerPerson: number;
+  durationHours: number;
+  location: string;
+  // Calculated fields
+  totalCost: number;
+  personHours: number;
+}
+
+export interface DepartmentalData {
+  [year: string]: {
+    [season in Season]?: {
+      [department: string]: DepartmentReportRow[];
+    }
+  }
+}
+
+// Interface for Final Consolidated Report
+export interface ConsolidatedReportItem {
+  id: number;
+  unitName: string; // Chart/Organization Unit
+  totalHours: number;
+  totalCost: number;
+  totalPersonnel: number;
+  personHours: number; // Calculated: totalHours * totalPersonnel
+}
+
+export interface ConsolidatedReportData {
+  [year: string]: {
+    [season in Season]?: ConsolidatedReportItem[];
+  }
+}
+
 export type ContentFormat = 'video' | 'pamphlet' | 'powerpoint';
 
 export interface ContentGenerationRequest {
