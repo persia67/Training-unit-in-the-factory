@@ -181,7 +181,8 @@ const App = () => {
   const liveSession = useRef<GeminiLiveSession | null>(null);
   const isFirstRun = useRef(true);
 
-  const t = TRANSLATIONS[lang];
+  // Safe translation access
+  const t = TRANSLATIONS[lang] || TRANSLATIONS['fa'];
 
   const tabsConfig = [
     { id: Tab.Dashboard, label: t.dashboard, icon: LayoutDashboard },
@@ -529,39 +530,50 @@ const App = () => {
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className={`flex h-screen bg-slate-50 text-slate-800 font-sans ${isRTL ? 'font-[Vazirmatn]' : ''}`}>
+    <div className={`flex h-[100dvh] bg-slate-50 text-slate-800 font-sans ${isRTL ? 'font-[Vazirmatn]' : ''} overflow-hidden`}>
       {/* Offline Banner */}
       {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-xs font-bold text-center py-1 z-50 animate-pulse">
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-xs font-bold text-center py-1 z-[60] animate-pulse">
            {lang === 'fa' ? 'حالت آفلاین فعال است - تغییرات ذخیره می‌شوند' : 'Offline Mode Active - Changes will be saved locally'}
         </div>
       )}
 
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`bg-slate-900 text-white w-64 fixed h-full z-30 transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')} lg:static`}>
+      <aside 
+        className={`bg-slate-900 text-white w-72 lg:w-64 fixed h-[100dvh] z-30 transition-transform duration-300 flex flex-col 
+        ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')} 
+        ${isRTL ? 'right-0' : 'left-0'} lg:static shrink-0`}
+      >
         <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className={`bg-${theme}-600 p-2 rounded-lg`}>
               <Award className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight">{t.app_name}</span>
+            <span className="font-bold text-lg lg:text-xl tracking-tight truncate">{t.app_name}</span>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400"><X size={20} /></button>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 p-1 hover:text-white rounded-md"><X size={24} /></button>
         </div>
-        <nav className="mt-6 px-4 space-y-2 flex-1 overflow-y-auto">
+        <nav className="mt-6 px-4 space-y-2 flex-1 overflow-y-auto no-scrollbar">
           {tabsConfig.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === tab.id ? `bg-${theme}-600 text-white shadow-lg` : 'text-slate-400 hover:bg-slate-800'}`}>
-              <tab.icon className="w-5 h-5" />
-              <span className="font-medium text-sm">{tab.label}</span>
+              <tab.icon className="w-5 h-5 shrink-0" />
+              <span className="font-medium text-sm truncate">{tab.label}</span>
             </button>
           ))}
         </nav>
-        <div className="p-6 shrink-0 mt-auto">
-           {/* ... Role Switcher same as before ... */}
+        <div className="p-6 shrink-0 mt-auto safe-area-bottom">
            <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
               <div className="flex items-center gap-3 mb-2">
                  <div className={`w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-white`}>TM</div>
-                 <div><p className="text-xs font-semibold text-white">{t.role_training_manager}</p></div>
+                 <div className="overflow-hidden"><p className="text-xs font-semibold text-white truncate">{t.role_training_manager}</p></div>
               </div>
               <div className="flex items-center gap-2 text-[10px] text-slate-400">
                  {isOnline ? <Cloud size={12} className="text-emerald-400"/> : <CloudOff size={12} className="text-red-400"/>}
@@ -572,29 +584,28 @@ const App = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 mt-4 lg:mt-0">
-           {/* Header Content (Search, Lang) same as before */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative w-full">
+        <header className="bg-white border-b border-slate-200 h-16 px-4 md:px-6 flex items-center justify-between shrink-0 safe-area-top">
            <div className="flex items-center gap-4">
-             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-500"><Menu size={20}/></button>
-             <h1 className="font-bold text-lg text-slate-800">{tabsConfig.find(t => t.id === activeTab)?.label}</h1>
+             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><Menu size={24}/></button>
+             <h1 className="font-bold text-lg text-slate-800 truncate">{tabsConfig.find(t => t.id === activeTab)?.label}</h1>
            </div>
            <div className="flex items-center gap-3">
-              <button onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')} className="text-sm font-bold uppercase text-slate-600">{lang}</button>
+              <button onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')} className="text-sm font-bold uppercase text-slate-600 bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 transition-colors">{lang}</button>
            </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-20">
            {/* DASHBOARD (REVAMPED) */}
            {activeTab === Tab.Dashboard && (
               <div className="space-y-6">
                  {/* Header & AI Trigger */}
                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                       <h2 className="text-2xl font-bold text-slate-800">{t.dash_title}</h2>
-                       <p className="text-slate-500 text-sm mt-1">{t.dash_subtitle}</p>
+                       <h2 className="text-xl md:text-2xl font-bold text-slate-800">{t.dash_title}</h2>
+                       <p className="text-slate-500 text-xs md:text-sm mt-1">{t.dash_subtitle}</p>
                     </div>
-                    <button onClick={runDashboardAnalysis} className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-md flex items-center gap-2 transition-all">
+                    <button onClick={runDashboardAnalysis} className="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
                        {isAnalyzing ? <Loader2 className="animate-spin" size={18}/> : <Sparkles size={18}/>} 
                        <span className="font-medium">{t.btn_ai_analysis}</span>
                     </button>
@@ -602,7 +613,7 @@ const App = () => {
 
                  {/* AI Analysis Result */}
                  {dashboardAnalysis && (
-                    <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl animate-fade-in">
+                    <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl animate-fade-in shadow-sm">
                        <div className="flex items-center gap-2 mb-2 text-indigo-700 font-bold">
                           <Bot size={20}/>
                           <span>تحلیل هوشمند سیستم</span>
@@ -612,7 +623,7 @@ const App = () => {
                  )}
                  
                  {/* KPI Cards Row */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Card 1: Total Employees */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                        <div className="absolute right-0 top-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
@@ -671,16 +682,16 @@ const App = () => {
                  {/* Main Charts Row */}
                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Area Chart */}
-                    <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-sm">
                        <div className="flex justify-between items-center mb-6">
-                          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Zap size={18} className="text-amber-500"/> {t.chart_monthly}</h3>
+                          <h3 className="font-bold text-base md:text-lg text-slate-800 flex items-center gap-2"><Zap size={18} className="text-amber-500"/> {t.chart_monthly}</h3>
                           <div className="flex gap-2">
                              <span className="text-xs px-2 py-1 bg-slate-100 rounded text-slate-500">1403</span>
                           </div>
                        </div>
-                       <div style={{ height: 300 }}>
+                       <div style={{ height: 300, width: '100%' }}>
                           <ResponsiveContainer width="100%" height="100%">
-                             <AreaChart data={localizedMonthlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                             <AreaChart data={localizedMonthlyData} margin={{ top: 10, right: 30, left: -20, bottom: 0 }}>
                                 <defs>
                                    <linearGradient id="colorParticipants" x1="0" y1="0" x2="0" y2="1">
                                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -698,9 +709,9 @@ const App = () => {
                     </div>
 
                     {/* Department Distribution Pie Chart */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                       <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><Building2 size={18} className="text-indigo-500"/> {t.chart_dist}</h3>
-                       <div style={{ height: 300 }} className="relative">
+                    <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                       <h3 className="font-bold text-base md:text-lg text-slate-800 mb-6 flex items-center gap-2"><Building2 size={18} className="text-indigo-500"/> {t.chart_dist}</h3>
+                       <div style={{ height: 300, width: '100%' }} className="relative">
                           <ResponsiveContainer width="100%" height="100%">
                              <RechartsPieChart>
                                 <Pie
@@ -762,10 +773,10 @@ const App = () => {
                     </div>
 
                     {/* Recent Courses / Quick Actions */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                        <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2"><Clock size={18} className="text-blue-500"/> {lang==='fa'?'دوره‌های اخیر':'Recent Courses'}</h3>
                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm text-left">
+                          <table className="w-full text-sm text-left whitespace-nowrap">
                              <thead className="bg-slate-50 text-slate-500">
                                 <tr>
                                    <th className="p-3 rounded-l-lg">{t.col_course_name}</th>
@@ -799,26 +810,28 @@ const App = () => {
            {/* COURSES (Persisted) */}
            {activeTab === Tab.Courses && (
               <div className="space-y-6">
-                 <div className="flex justify-between">
-                    <h2 className="text-2xl font-bold">{t.course_manage_title}</h2>
-                    <button onClick={() => openCourseModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex gap-2"><Plus size={20}/> {t.btn_new_course}</button>
+                 <div className="flex justify-between items-center">
+                    <h2 className="text-xl md:text-2xl font-bold">{t.course_manage_title}</h2>
+                    <button onClick={() => openCourseModal()} className="bg-blue-600 text-white px-3 py-2 text-sm md:text-base rounded-lg flex gap-2 items-center hover:bg-blue-700 transition-colors"><Plus size={18}/> <span className="hidden md:inline">{t.btn_new_course}</span><span className="md:hidden">New</span></button>
                  </div>
-                 <div className="bg-white rounded-2xl border overflow-hidden">
-                    <table className="w-full text-sm text-left">
-                       <thead className="bg-slate-50 text-slate-500">
-                          <tr><th className="p-4">{t.col_course_name}</th><th className="p-4">{t.col_participants}</th><th className="p-4">{t.col_status}</th><th className="p-4"></th></tr>
-                       </thead>
-                       <tbody className="divide-y">
-                          {filteredCourses.map(c => (
-                             <tr key={c.id}>
-                                <td className="p-4">{c.name}</td>
-                                <td className="p-4">{c.participants}</td>
-                                <td className="p-4"><span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{c.status}</span></td>
-                                <td className="p-4 text-right"><button onClick={() => handleDeleteCourse(c.id)} className="text-red-500"><Trash size={16}/></button></td>
-                             </tr>
-                          ))}
-                       </tbody>
-                    </table>
+                 <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left whitespace-nowrap">
+                         <thead className="bg-slate-50 text-slate-500">
+                            <tr><th className="p-4">{t.col_course_name}</th><th className="p-4">{t.col_participants}</th><th className="p-4">{t.col_status}</th><th className="p-4"></th></tr>
+                         </thead>
+                         <tbody className="divide-y">
+                            {filteredCourses.map(c => (
+                               <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="p-4">{c.name}</td>
+                                  <td className="p-4">{c.participants}</td>
+                                  <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-bold ${c.status==='active'?'bg-emerald-100 text-emerald-700':'bg-slate-100 text-slate-600'}`}>{c.status}</span></td>
+                                  <td className="p-4 text-right"><button onClick={() => handleDeleteCourse(c.id)} className="text-red-500 hover:text-red-700 p-2"><Trash size={16}/></button></td>
+                               </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                    </div>
                  </div>
               </div>
            )}
@@ -828,44 +841,52 @@ const App = () => {
               <div className="space-y-6">
                  {!selectedEmployee ? (
                     <>
-                       <div className="flex justify-between">
+                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                           <h2 className="text-2xl font-bold">{t.emp_title}</h2>
-                          <div className="flex gap-2">
-                             <label className="bg-white border px-4 py-2 rounded-lg cursor-pointer"><input type="file" hidden onChange={handleExcelUpload}/>Import Excel</label>
+                          <div className="flex gap-2 w-full md:w-auto">
+                             <label className="bg-white border hover:bg-slate-50 transition-colors px-4 py-2 rounded-lg cursor-pointer flex-1 md:flex-none text-center text-sm shadow-sm flex items-center justify-center gap-2">
+                                <FileSpreadsheet size={16} className="text-green-600"/>
+                                <input type="file" hidden onChange={handleExcelUpload}/>Import Excel
+                             </label>
                           </div>
                        </div>
-                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {employeesList.map(e => (
-                             <div key={e.id} onClick={() => setSelectedEmployee(e)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer">
-                                <div className="font-bold">{e.name}</div>
-                                <div className="text-sm text-slate-500">{e.department}</div>
+                             <div key={e.id} onClick={() => setSelectedEmployee(e)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer transition-all active:scale-98">
+                                <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">{e.name.charAt(0)}</div>
+                                   <div>
+                                      <div className="font-bold text-slate-800">{e.name}</div>
+                                      <div className="text-sm text-slate-500">{e.department}</div>
+                                   </div>
+                                </div>
                              </div>
                           ))}
                        </div>
                     </>
                  ) : (
-                    <div className="bg-white p-6 rounded-2xl border min-h-[600px]">
-                       <button onClick={() => setSelectedEmployee(null)} className="mb-4 text-slate-500"><ChevronRight className={isRTL ? '' : 'rotate-180'}/></button>
-                       <h2 className="text-xl font-bold mb-6">{selectedEmployee.name}</h2>
-                       <div className="grid md:grid-cols-2 gap-8">
+                    <div className="bg-white p-4 md:p-6 rounded-2xl border min-h-[600px] shadow-sm">
+                       <button onClick={() => setSelectedEmployee(null)} className="mb-4 text-slate-500 flex items-center gap-1 hover:text-slate-800"><ChevronRight className={isRTL ? '' : 'rotate-180'} size={18}/> Back</button>
+                       <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">{selectedEmployee.name.charAt(0)}</div>{selectedEmployee.name}</h2>
+                       <div className="grid lg:grid-cols-2 gap-8">
                           <div>
-                             <h3 className="font-bold mb-4">{t.emp_history_title}</h3>
+                             <h3 className="font-bold mb-4 text-slate-700">{t.emp_history_title}</h3>
                              <div className="space-y-2">
                                 {selectedEmployee.completedCoursesList.map(c => (
-                                   <div key={c.id} className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                                      <span>{c.name}</span>
-                                      <button onClick={() => handleGenerateCertificate(c.name)} className="text-blue-600 text-xs font-bold flex items-center gap-1"><Award size={14}/> Cert</button>
+                                   <div key={c.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                      <span className="text-sm font-medium">{c.name}</span>
+                                      <button onClick={() => handleGenerateCertificate(c.name)} className="text-blue-600 text-xs font-bold flex items-center gap-1 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100"><Award size={14}/> Cert</button>
                                    </div>
                                 ))}
                              </div>
                           </div>
-                          <div className="bg-slate-50 p-6 rounded-xl text-center">
-                             {isGeneratingCert ? <Loader2 className="animate-spin mx-auto"/> : generatedCertUrl ? (
-                                <div className="relative group">
+                          <div className="bg-slate-50 p-6 rounded-xl text-center border border-dashed border-slate-300 flex items-center justify-center min-h-[300px]">
+                             {isGeneratingCert ? <Loader2 className="animate-spin mx-auto text-blue-500" size={32}/> : generatedCertUrl ? (
+                                <div className="relative group w-full">
                                    <img src={generatedCertUrl} className="w-full shadow-lg rounded-lg"/>
-                                   <a href={generatedCertUrl} download="cert.png" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-bold">Download</a>
+                                   <a href={generatedCertUrl} download="cert.png" className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-bold transition-opacity rounded-lg">Download</a>
                                 </div>
-                             ) : <div className="text-slate-400">Select a course to generate certificate</div>}
+                             ) : <div className="text-slate-400 flex flex-col items-center gap-2"><Award size={48} className="text-slate-300"/> Select a course to generate certificate</div>}
                           </div>
                        </div>
                     </div>
@@ -877,113 +898,113 @@ const App = () => {
            {activeTab === Tab.Reports && (
               <div className="space-y-6">
                  {/* Controls */}
-                 <div className="bg-white p-4 rounded-2xl border flex flex-col md:flex-row justify-between gap-4">
-                    <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
+                 <div className="bg-white p-4 rounded-2xl border flex flex-col md:flex-row justify-between gap-4 shadow-sm">
+                    <div className="flex gap-2 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
                        {(['courses', 'units', 'consolidated'] as const).map(sub => (
-                          <button key={sub} onClick={() => setActiveReportSubTab(sub)} className={`px-4 py-2 rounded-lg text-sm font-bold ${activeReportSubTab === sub ? 'bg-white shadow' : 'text-slate-500'}`}>
+                          <button key={sub} onClick={() => setActiveReportSubTab(sub)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${activeReportSubTab === sub ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>
                              {sub === 'courses' ? t.dept_report_title : sub === 'units' ? t.unit_report_title : t.consolidated_report_title}
                           </button>
                        ))}
                     </div>
-                    <div className="flex gap-2">
-                       <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="bg-slate-50 border rounded-lg px-3 py-2">{yearsList.map(y => <option key={y} value={y}>{y}</option>)}</select>
-                       <select value={selectedDeptSeason} onChange={e => setSelectedDeptSeason(e.target.value as Season)} className="bg-slate-50 border rounded-lg px-3 py-2">{['Spring','Summer','Fall','Winter'].map(s => <option key={s} value={s}>{s}</option>)}</select>
-                       <button onClick={handleAddYear} className="p-2 bg-slate-100 rounded-lg"><Plus size={16}/></button>
+                    <div className="flex gap-2 flex-wrap">
+                       <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="bg-slate-50 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">{yearsList.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                       <select value={selectedDeptSeason} onChange={e => setSelectedDeptSeason(e.target.value as Season)} className="bg-slate-50 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">{['Spring','Summer','Fall','Winter'].map(s => <option key={s} value={s}>{s}</option>)}</select>
+                       <button onClick={handleAddYear} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600"><Plus size={16}/></button>
                     </div>
                  </div>
 
                  {/* Report 1: General */}
                  {activeReportSubTab === 'courses' && (
-                    <div className="bg-white p-6 rounded-2xl border space-y-6">
-                       <div className="flex justify-between">
-                          <h3 className="font-bold">{t.dept_report_title}</h3>
-                          <button onClick={handleSyncFromUnits} className="flex gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-sm"><Layers size={14}/> Sync</button>
+                    <div className="bg-white p-4 md:p-6 rounded-2xl border space-y-6 shadow-sm">
+                       <div className="flex justify-between items-center">
+                          <h3 className="font-bold text-lg">{t.dept_report_title}</h3>
+                          <button onClick={handleSyncFromUnits} className="flex gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs md:text-sm items-center hover:bg-slate-800"><Layers size={14}/> <span className="hidden md:inline">Sync from Units</span><span className="md:hidden">Sync</span></button>
                        </div>
                        {/* Input Row */}
-                       <div className="grid grid-cols-6 gap-2 bg-slate-50 p-4 rounded-xl items-end">
-                          <div className="col-span-2"><label className="text-xs font-bold block mb-1">Course</label><input className="w-full border rounded p-1" value={newRowData.courseName} onChange={e => setNewRowData({...newRowData, courseName: e.target.value})}/></div>
-                          <div><label className="text-xs font-bold block mb-1">Users</label><input type="number" className="w-full border rounded p-1" value={newRowData.participants} onChange={e => setNewRowData({...newRowData, participants: Number(e.target.value)})}/></div>
-                          <div><label className="text-xs font-bold block mb-1">Cost/User</label><input type="number" className="w-full border rounded p-1" value={newRowData.costPerPerson} onChange={e => setNewRowData({...newRowData, costPerPerson: Number(e.target.value)})}/></div>
-                          <div><label className="text-xs font-bold block mb-1">Hours</label><input type="number" className="w-full border rounded p-1" value={newRowData.durationHours} onChange={e => setNewRowData({...newRowData, durationHours: Number(e.target.value)})}/></div>
-                          <button onClick={() => addReportRow(setGeneralCourseReports, 'General')} className="bg-emerald-600 text-white rounded p-1"><Plus/></button>
+                       <div className="grid grid-cols-1 md:grid-cols-6 gap-2 bg-slate-50 p-4 rounded-xl items-end border border-slate-100">
+                          <div className="md:col-span-2"><label className="text-xs font-bold block mb-1 text-slate-500">Course</label><input className="w-full border rounded p-2 text-sm" placeholder="Course Name" value={newRowData.courseName} onChange={e => setNewRowData({...newRowData, courseName: e.target.value})}/></div>
+                          <div><label className="text-xs font-bold block mb-1 text-slate-500">Users</label><input type="number" className="w-full border rounded p-2 text-sm" placeholder="0" value={newRowData.participants} onChange={e => setNewRowData({...newRowData, participants: Number(e.target.value)})}/></div>
+                          <div><label className="text-xs font-bold block mb-1 text-slate-500">Cost/User</label><input type="number" className="w-full border rounded p-2 text-sm" placeholder="0" value={newRowData.costPerPerson} onChange={e => setNewRowData({...newRowData, costPerPerson: Number(e.target.value)})}/></div>
+                          <div><label className="text-xs font-bold block mb-1 text-slate-500">Hours</label><input type="number" className="w-full border rounded p-2 text-sm" placeholder="0" value={newRowData.durationHours} onChange={e => setNewRowData({...newRowData, durationHours: Number(e.target.value)})}/></div>
+                          <button onClick={() => addReportRow(setGeneralCourseReports, 'General')} className="bg-emerald-600 text-white rounded p-2 w-full flex items-center justify-center hover:bg-emerald-700 mt-2 md:mt-0"><Plus size={20}/></button>
                        </div>
                        {/* Table */}
                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                             <thead className="bg-slate-50"><tr><th>Course</th><th>Users</th><th>Cost</th><th>Total</th><th></th></tr></thead>
+                          <table className="w-full text-sm whitespace-nowrap">
+                             <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3 text-left">Course</th><th className="p-3 text-left">Users</th><th className="p-3 text-left">Cost</th><th className="p-3 text-left">Total</th><th className="p-3"></th></tr></thead>
                              <tbody>
                                 {currentGeneralRows.map((row: any) => (
-                                   <tr key={row.id} className="border-b">
+                                   <tr key={row.id} className="border-b hover:bg-slate-50">
                                       <td className="p-3">{row.courseName}</td>
-                                      <td>{row.participants}</td>
-                                      <td>{row.totalCost.toLocaleString()}</td>
-                                      <td className="font-bold">{row.totalCost.toLocaleString()}</td>
-                                      <td><button onClick={() => deleteReportRow(setGeneralCourseReports, 'General', row.id)} className="text-red-500"><Trash size={14}/></button></td>
+                                      <td className="p-3">{row.participants}</td>
+                                      <td className="p-3">{row.totalCost.toLocaleString()}</td>
+                                      <td className="p-3 font-bold">{row.totalCost.toLocaleString()}</td>
+                                      <td className="p-3"><button onClick={() => deleteReportRow(setGeneralCourseReports, 'General', row.id)} className="text-red-500 hover:text-red-700"><Trash size={14}/></button></td>
                                    </tr>
                                 ))}
                              </tbody>
                           </table>
                        </div>
-                       <div style={{ width: '100%', height: 320 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={coursePerformanceData}><CartesianGrid/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="participants" fill="#8884d8"/><Line type="monotone" dataKey="totalCost" stroke="#ff7300"/></ComposedChart></ResponsiveContainer></div>
+                       <div style={{ width: '100%', height: 320 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={coursePerformanceData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="participants" fill="#8884d8" radius={[4,4,0,0]} barSize={40}/><Line type="monotone" dataKey="totalCost" stroke="#ff7300" strokeWidth={2}/></ComposedChart></ResponsiveContainer></div>
                     </div>
                  )}
 
                  {/* Report 3: Unit Specific */}
                  {activeReportSubTab === 'units' && (
-                    <div className="bg-white p-6 rounded-2xl border space-y-6">
-                       <div className="flex justify-between items-center">
-                          <h3 className="font-bold">{t.unit_report_title}</h3>
-                          <select value={selectedUnitName} onChange={e => setSelectedUnitName(e.target.value)} className="border rounded p-2">{ORGANIZATIONAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select>
+                    <div className="bg-white p-4 md:p-6 rounded-2xl border space-y-6 shadow-sm">
+                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <h3 className="font-bold text-lg">{t.unit_report_title}</h3>
+                          <select value={selectedUnitName} onChange={e => setSelectedUnitName(e.target.value)} className="border rounded p-2 text-sm w-full md:w-auto">{ORGANIZATIONAL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select>
                        </div>
-                       <div className="grid grid-cols-6 gap-2 bg-slate-50 p-4 rounded-xl items-end">
-                          <div className="col-span-2"><input placeholder="Course Name" className="w-full border rounded p-1" value={newRowData.courseName} onChange={e => setNewRowData({...newRowData, courseName: e.target.value})}/></div>
-                          <div><input type="number" placeholder="Users" className="w-full border rounded p-1" value={newRowData.participants} onChange={e => setNewRowData({...newRowData, participants: Number(e.target.value)})}/></div>
-                          <div><input type="number" placeholder="Cost" className="w-full border rounded p-1" value={newRowData.costPerPerson} onChange={e => setNewRowData({...newRowData, costPerPerson: Number(e.target.value)})}/></div>
-                          <div><input type="number" placeholder="Hours" className="w-full border rounded p-1" value={newRowData.durationHours} onChange={e => setNewRowData({...newRowData, durationHours: Number(e.target.value)})}/></div>
-                          <button onClick={() => addReportRow(setUnitReports, selectedUnitName)} className="bg-blue-600 text-white rounded p-1"><Plus/></button>
+                       <div className="grid grid-cols-1 md:grid-cols-6 gap-2 bg-slate-50 p-4 rounded-xl items-end border border-slate-100">
+                          <div className="md:col-span-2"><input placeholder="Course Name" className="w-full border rounded p-2 text-sm" value={newRowData.courseName} onChange={e => setNewRowData({...newRowData, courseName: e.target.value})}/></div>
+                          <div><input type="number" placeholder="Users" className="w-full border rounded p-2 text-sm" value={newRowData.participants} onChange={e => setNewRowData({...newRowData, participants: Number(e.target.value)})}/></div>
+                          <div><input type="number" placeholder="Cost" className="w-full border rounded p-2 text-sm" value={newRowData.costPerPerson} onChange={e => setNewRowData({...newRowData, costPerPerson: Number(e.target.value)})}/></div>
+                          <div><input type="number" placeholder="Hours" className="w-full border rounded p-2 text-sm" value={newRowData.durationHours} onChange={e => setNewRowData({...newRowData, durationHours: Number(e.target.value)})}/></div>
+                          <button onClick={() => addReportRow(setUnitReports, selectedUnitName)} className="bg-blue-600 text-white rounded p-2 w-full flex items-center justify-center hover:bg-blue-700 mt-2 md:mt-0"><Plus size={20}/></button>
                        </div>
                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                             <thead className="bg-slate-50"><tr><th>Course</th><th>Users</th><th>Hours</th><th>Total Cost</th><th></th></tr></thead>
+                          <table className="w-full text-sm whitespace-nowrap">
+                             <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3 text-left">Course</th><th className="p-3 text-left">Users</th><th className="p-3 text-left">Hours</th><th className="p-3 text-left">Total Cost</th><th className="p-3"></th></tr></thead>
                              <tbody>
                                 {(unitReports[selectedYear]?.[selectedDeptSeason]?.[selectedUnitName] || []).map((row: any) => (
-                                   <tr key={row.id} className="border-b">
+                                   <tr key={row.id} className="border-b hover:bg-slate-50">
                                       <td className="p-3">{row.courseName}</td>
-                                      <td>{row.participants}</td>
-                                      <td>{row.durationHours}</td>
-                                      <td className="font-bold">{row.totalCost.toLocaleString()}</td>
-                                      <td><button onClick={() => deleteReportRow(setUnitReports, selectedUnitName, row.id)} className="text-red-500"><Trash size={14}/></button></td>
+                                      <td className="p-3">{row.participants}</td>
+                                      <td className="p-3">{row.durationHours}</td>
+                                      <td className="p-3 font-bold">{row.totalCost.toLocaleString()}</td>
+                                      <td className="p-3"><button onClick={() => deleteReportRow(setUnitReports, selectedUnitName, row.id)} className="text-red-500 hover:text-red-700"><Trash size={14}/></button></td>
                                    </tr>
                                 ))}
                              </tbody>
                           </table>
                        </div>
-                       <div style={{ width: '100%', height: 320 }}><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={unitHistoryData}><CartesianGrid/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="personHours" fill="#3b82f6"/></RechartsBarChart></ResponsiveContainer></div>
+                       <div style={{ width: '100%', height: 320 }}><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={unitHistoryData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="personHours" fill="#3b82f6" radius={[4,4,0,0]} barSize={40}/></RechartsBarChart></ResponsiveContainer></div>
                     </div>
                  )}
 
                  {/* Report 2: Consolidated */}
                  {activeReportSubTab === 'consolidated' && (
-                    <div className="bg-white p-6 rounded-2xl border space-y-6">
-                        <div className="flex justify-between">
-                           <h3 className="font-bold">{t.consolidated_report_title}</h3>
+                    <div className="bg-white p-4 md:p-6 rounded-2xl border space-y-6 shadow-sm">
+                        <div className="flex justify-between items-center">
+                           <h3 className="font-bold text-lg">{t.consolidated_report_title}</h3>
                            <div className="flex gap-2">
-                              <button onClick={() => setConsolidatedChartMetric('totalCost')} className="text-xs bg-slate-100 px-2 py-1 rounded">Cost</button>
-                              <button onClick={() => setConsolidatedChartMetric('personHours')} className="text-xs bg-slate-100 px-2 py-1 rounded">Hours</button>
+                              <button onClick={() => setConsolidatedChartMetric('totalCost')} className={`text-xs px-2 py-1 rounded transition-colors ${consolidatedChartMetric === 'totalCost' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>Cost</button>
+                              <button onClick={() => setConsolidatedChartMetric('personHours')} className={`text-xs px-2 py-1 rounded transition-colors ${consolidatedChartMetric === 'personHours' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>Hours</button>
                            </div>
                         </div>
                         <div className="overflow-x-auto">
-                           <table className="w-full text-sm">
-                              <thead className="bg-slate-50"><tr><th>Unit</th><th>Hours</th><th>Cost</th><th>Personnel</th><th>Total P-H</th></tr></thead>
+                           <table className="w-full text-sm whitespace-nowrap">
+                              <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2 text-left">Unit</th><th className="p-2 text-left">Hours</th><th className="p-2 text-left">Cost</th><th className="p-2 text-left">Personnel</th><th className="p-2 text-left">Total P-H</th></tr></thead>
                               <tbody>
                                  {ORGANIZATIONAL_UNITS.map(u => {
                                     const item = consolidatedReports[selectedYear]?.[selectedDeptSeason]?.find(x => x.unitName === u) || { totalHours:0, totalCost:0, totalPersonnel:0, personHours:0 };
                                     return (
                                        <tr key={u} className="border-b hover:bg-slate-50">
-                                          <td className="p-2 font-medium">{u}</td>
-                                          <td><input type="number" className="w-16 bg-transparent border-b" value={item.totalHours||''} onChange={e => updateConsolidatedItem(u, 'totalHours', Number(e.target.value))}/></td>
-                                          <td><input type="number" className="w-24 bg-transparent border-b" value={item.totalCost||''} onChange={e => updateConsolidatedItem(u, 'totalCost', Number(e.target.value))}/></td>
-                                          <td><input type="number" className="w-16 bg-transparent border-b" value={item.totalPersonnel||''} onChange={e => updateConsolidatedItem(u, 'totalPersonnel', Number(e.target.value))}/></td>
+                                          <td className="p-2 font-medium text-slate-700">{u}</td>
+                                          <td><input type="number" className="w-16 bg-transparent border-b focus:border-blue-500 outline-none" value={item.totalHours||''} onChange={e => updateConsolidatedItem(u, 'totalHours', Number(e.target.value))}/></td>
+                                          <td><input type="number" className="w-24 bg-transparent border-b focus:border-blue-500 outline-none" value={item.totalCost||''} onChange={e => updateConsolidatedItem(u, 'totalCost', Number(e.target.value))}/></td>
+                                          <td><input type="number" className="w-16 bg-transparent border-b focus:border-blue-500 outline-none" value={item.totalPersonnel||''} onChange={e => updateConsolidatedItem(u, 'totalPersonnel', Number(e.target.value))}/></td>
                                           <td className="font-bold text-purple-600">{item.personHours.toLocaleString()}</td>
                                        </tr>
                                     );
@@ -991,7 +1012,7 @@ const App = () => {
                               </tbody>
                            </table>
                         </div>
-                        <div style={{ width: '100%', height: 320 }}><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={consolidatedData} margin={{bottom: 100}}><CartesianGrid/><XAxis dataKey="name" angle={-90} textAnchor="end" interval={0} height={100} tick={{fontSize: 10}}/><YAxis/><Tooltip/><Bar dataKey="value" fill="#8b5cf6"/></RechartsBarChart></ResponsiveContainer></div>
+                        <div style={{ width: '100%', height: 320 }}><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={consolidatedData} margin={{bottom: 100}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name" angle={-90} textAnchor="end" interval={0} height={100} tick={{fontSize: 10}}/><YAxis/><Tooltip/><Bar dataKey="value" fill="#8b5cf6" radius={[4,4,0,0]}/></RechartsBarChart></ResponsiveContainer></div>
                     </div>
                  )}
               </div>
@@ -999,30 +1020,30 @@ const App = () => {
 
            {/* AI (Offline Aware) */}
            {activeTab === Tab.AI && (
-              <div className="h-[calc(100vh-140px)] bg-white rounded-2xl border flex flex-col">
-                 <div className="p-4 border-b flex justify-between bg-slate-50">
-                    <div className="flex gap-2"><button onClick={() => setAiMode('chat')} className={`px-3 py-1 rounded ${aiMode==='chat'?'bg-white shadow':''}`}>{t.ai_mode_chat}</button><button onClick={() => setAiMode('studio')} className={`px-3 py-1 rounded ${aiMode==='studio'?'bg-white shadow':''}`}>{t.ai_mode_studio}</button></div>
+              <div className="h-[calc(100dvh-140px)] bg-white rounded-2xl border flex flex-col shadow-sm">
+                 <div className="p-4 border-b flex justify-between bg-slate-50 rounded-t-2xl">
+                    <div className="flex gap-2"><button onClick={() => setAiMode('chat')} className={`px-3 py-1 rounded text-sm transition-all ${aiMode==='chat'?'bg-white shadow text-slate-800 font-bold':'text-slate-500'}`}>{t.ai_mode_chat}</button><button onClick={() => setAiMode('studio')} className={`px-3 py-1 rounded text-sm transition-all ${aiMode==='studio'?'bg-white shadow text-slate-800 font-bold':'text-slate-500'}`}>{t.ai_mode_studio}</button></div>
                  </div>
                  {aiMode === 'chat' ? (
                     <>
                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                          {messages.map((m,i)=><div key={i} className={`p-3 rounded-lg max-w-[80%] ${m.role==='user'?'ml-auto bg-blue-600 text-white':'bg-slate-100'}`}>{m.content}</div>)}
-                          {isTyping && <div className="text-xs text-slate-400">Typing...</div>}
+                          {messages.map((m,i)=><div key={i} className={`p-3 rounded-lg max-w-[85%] text-sm ${m.role==='user'?'ml-auto bg-blue-600 text-white shadow-sm':'bg-slate-100 text-slate-700'}`}>{m.content}</div>)}
+                          {isTyping && <div className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={10} className="animate-spin"/> Typing...</div>}
                           <div ref={chatEndRef}/>
                        </div>
                        <div className="p-4 border-t flex gap-2">
-                          <input value={inputMessage} onChange={e=>setInputMessage(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handleSendMessage()} className="flex-1 border rounded-lg px-3" placeholder={isOnline?"Message AI...":"Message Offline Bot..."} />
-                          <button onClick={handleSendMessage} className="bg-blue-600 text-white p-2 rounded-lg"><Send size={20}/></button>
+                          <input value={inputMessage} onChange={e=>setInputMessage(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handleSendMessage()} className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder={isOnline?"Message AI...":"Message Offline Bot..."} />
+                          <button onClick={handleSendMessage} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"><Send size={20}/></button>
                        </div>
                     </>
                  ) : (
-                    <div className="p-6 space-y-4 max-w-lg mx-auto overflow-y-auto">
+                    <div className="p-6 space-y-4 max-w-lg mx-auto overflow-y-auto w-full">
                        <h3 className="font-bold text-center text-lg">{t.studio_title} {isOnline ? '' : '(Offline Mode)'}</h3>
-                       <input className="w-full border rounded p-2" placeholder="Topic" value={genForm.topic} onChange={e=>setGenForm({...genForm, topic: e.target.value})}/>
-                       <input className="w-full border rounded p-2" placeholder="Audience" value={genForm.targetAudience} onChange={e=>setGenForm({...genForm, targetAudience: e.target.value})}/>
-                       <select className="w-full border rounded p-2" value={genForm.format} onChange={e=>setGenForm({...genForm, format: e.target.value as ContentFormat})}><option value="pamphlet">Pamphlet</option><option value="powerpoint">PowerPoint</option><option value="video">Video (Online Only)</option></select>
-                       <button onClick={handleGenerateContent} disabled={isGeneratingContent} className="w-full bg-blue-600 text-white py-2 rounded font-bold flex justify-center gap-2">{isGeneratingContent?<Loader2 className="animate-spin"/>:<Wand2/>} Generate</button>
-                       {generatedContentUrl && <a href={generatedContentUrl} download="content.md" className="block text-center text-blue-600 font-bold mt-4">Download Generated Content</a>}
+                       <input className="w-full border rounded p-3 text-sm" placeholder="Topic" value={genForm.topic} onChange={e=>setGenForm({...genForm, topic: e.target.value})}/>
+                       <input className="w-full border rounded p-3 text-sm" placeholder="Audience" value={genForm.targetAudience} onChange={e=>setGenForm({...genForm, targetAudience: e.target.value})}/>
+                       <select className="w-full border rounded p-3 text-sm bg-white" value={genForm.format} onChange={e=>setGenForm({...genForm, format: e.target.value as ContentFormat})}><option value="pamphlet">Pamphlet</option><option value="powerpoint">PowerPoint</option><option value="video">Video (Online Only)</option></select>
+                       <button onClick={handleGenerateContent} disabled={isGeneratingContent} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex justify-center gap-2 items-center hover:bg-blue-700 shadow-md transition-all active:scale-95">{isGeneratingContent?<Loader2 className="animate-spin"/>:<Wand2/>} Generate Content</button>
+                       {generatedContentUrl && <a href={generatedContentUrl} download="content.md" className="block text-center text-blue-600 font-bold mt-4 border border-blue-200 p-3 rounded-xl hover:bg-blue-50">Download Generated Content</a>}
                     </div>
                  )}
               </div>
@@ -1030,11 +1051,11 @@ const App = () => {
 
            {/* Settings */}
            {activeTab === Tab.Settings && (
-              <div className="bg-white p-6 rounded-2xl border">
+              <div className="bg-white p-6 rounded-2xl border shadow-sm">
                  <h2 className="text-xl font-bold mb-4">{t.settings_title}</h2>
-                 <div className="space-y-4 max-w-md">
-                    <div><label className="block text-xs font-bold">Company Name</label><input className="w-full border rounded p-2" value={systemSettings.companyName} onChange={e=>handleSettingsChange('companyName',e.target.value)}/></div>
-                    <div><label className="block text-xs font-bold">Logo</label><input type="file" onChange={handleLogoUpload}/>{systemSettings.logo && <img src={systemSettings.logo} className="h-16 mt-2"/>}</div>
+                 <div className="space-y-4 max-w-md w-full">
+                    <div><label className="block text-xs font-bold mb-1 text-slate-500">Company Name</label><input className="w-full border rounded p-2 text-sm" value={systemSettings.companyName} onChange={e=>handleSettingsChange('companyName',e.target.value)}/></div>
+                    <div><label className="block text-xs font-bold mb-1 text-slate-500">Logo</label><input type="file" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleLogoUpload}/>{systemSettings.logo && <img src={systemSettings.logo} className="h-16 mt-2 object-contain"/>}</div>
                     
                     {/* API Key Input */}
                     <div className="bg-slate-50 p-4 rounded-xl border mt-4">
@@ -1046,7 +1067,7 @@ const App = () => {
                        </div>
                        <input 
                            type={showApiKey ? "text" : "password"}
-                           className="w-full border rounded p-2 text-sm font-mono"
+                           className="w-full border rounded p-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
                            placeholder="Enter your API Key here..."
                            value={systemSettings.apiKey || ''}
                            onChange={e => handleSettingsChange('apiKey', e.target.value)}
@@ -1056,8 +1077,8 @@ const App = () => {
                        </p>
                     </div>
 
-                    <div className="flex gap-2 mt-4">
-                       {['blue','emerald','violet','rose','amber'].map((c:any) => <button key={c} onClick={()=>setTheme(c)} className={`w-8 h-8 rounded-full bg-${c}-500 ${theme===c?'ring-2 ring-offset-2':''}`}/>)}
+                    <div className="flex gap-3 mt-4">
+                       {['blue','emerald','violet','rose','amber'].map((c:any) => <button key={c} onClick={()=>setTheme(c)} className={`w-8 h-8 rounded-full bg-${c}-500 ${theme===c?'ring-2 ring-offset-2 ring-slate-400 scale-110':''} transition-all`}/>)}
                     </div>
                  </div>
               </div>
@@ -1066,24 +1087,24 @@ const App = () => {
 
         {/* Modal */}
         {isCourseModalOpen && (
-           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-2xl w-96 space-y-4">
-                 <h3 className="font-bold">Course</h3>
-                 <input className="w-full border rounded p-2" placeholder="Name" value={courseForm.name} onChange={e=>setCourseForm({...courseForm, name: e.target.value})}/>
+           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+              <div className="bg-white p-6 rounded-2xl w-full max-w-md space-y-4 shadow-xl animate-scale-up">
+                 <h3 className="font-bold text-lg">Course Details</h3>
+                 <input className="w-full border rounded p-2" placeholder="Course Name" value={courseForm.name} onChange={e=>setCourseForm({...courseForm, name: e.target.value})}/>
                  <div className="flex gap-2">
-                    <select className="w-1/2 border rounded p-2" value={courseForm.type} onChange={e=>setCourseForm({...courseForm, type: e.target.value as any})}><option value="internal">Internal</option><option value="external">External</option></select>
-                    <select className="w-1/2 border rounded p-2" value={courseForm.status} onChange={e=>setCourseForm({...courseForm, status: e.target.value as any})}><option value="active">Active</option><option value="completed">Completed</option></select>
+                    <select className="w-1/2 border rounded p-2 bg-white" value={courseForm.type} onChange={e=>setCourseForm({...courseForm, type: e.target.value as any})}><option value="internal">Internal</option><option value="external">External</option></select>
+                    <select className="w-1/2 border rounded p-2 bg-white" value={courseForm.status} onChange={e=>setCourseForm({...courseForm, status: e.target.value as any})}><option value="active">Active</option><option value="completed">Completed</option></select>
                  </div>
-                 <div className="flex justify-end gap-2">
-                    <button onClick={()=>setIsCourseModalOpen(false)} className="px-4 py-2 text-slate-500">Cancel</button>
-                    <button onClick={handleSaveCourse} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+                 <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={()=>setIsCourseModalOpen(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors">Cancel</button>
+                    <button onClick={handleSaveCourse} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Save</button>
                  </div>
               </div>
            </div>
         )}
 
         {/* Save Indicator */}
-        {showSaveIndicator && <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded-full text-xs shadow-lg flex items-center gap-2"><Save size={14}/> Saved to Local Storage</div>}
+        {showSaveIndicator && <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded-full text-xs shadow-lg flex items-center gap-2 z-50 animate-fade-in"><Save size={14}/> Saved</div>}
       </main>
     </div>
   );
