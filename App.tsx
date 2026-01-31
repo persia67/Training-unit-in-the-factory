@@ -77,7 +77,9 @@ import {
   Layers,
   Activity,
   Target,
-  Zap
+  Zap,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { 
   COURSES, 
@@ -117,7 +119,8 @@ const App = () => {
       companyName: 'Danial Steel Co.',
       ceoName: '',
       trainingManagerName: '',
-      logo: null
+      logo: null,
+      apiKey: '' // Default empty
   }, 'app_settings');
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -172,6 +175,7 @@ const App = () => {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContentUrl, setGeneratedContentUrl] = useState<string | null>(null);
   const [showSaveIndicator, setShowSaveIndicator] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const liveSession = useRef<GeminiLiveSession | null>(null);
@@ -218,9 +222,9 @@ const App = () => {
     setShowSaveIndicator(true);
     const timer = setTimeout(() => setShowSaveIndicator(false), 2000);
     return () => clearTimeout(timer);
-  }, [coursesList, employeesList, generalCourseReports, unitReports, consolidatedReports]);
+  }, [coursesList, employeesList, generalCourseReports, unitReports, consolidatedReports, systemSettings]);
 
-  // Logic functions... (Kept same as provided for brevity, focus on Dashboard below)
+  // Logic functions...
   
   const openCourseModal = (course?: any) => {
     if (course) {
@@ -429,7 +433,8 @@ const App = () => {
     try {
       const url = await generateCertificate(
         selectedEmployee.name, courseName, systemSettings.logo, 
-        systemSettings.ceoName, systemSettings.trainingManagerName, certImageSize, lang
+        systemSettings.ceoName, systemSettings.trainingManagerName, certImageSize, lang,
+        systemSettings.apiKey // PASS API KEY
       );
       setGeneratedCertUrl(url);
     } catch (e) { alert("Generation failed"); } 
@@ -440,8 +445,8 @@ const App = () => {
       setIsGeneratingContent(true);
       try {
           let res;
-          if (genForm.format === 'video') res = await generateTrainingVideo(genForm, lang);
-          else res = await generateTrainingDocument(genForm, lang);
+          if (genForm.format === 'video') res = await generateTrainingVideo(genForm, lang, systemSettings.apiKey); // PASS API KEY
+          else res = await generateTrainingDocument(genForm, lang, systemSettings.apiKey); // PASS API KEY
           
           if(genForm.format !== 'video') {
               const blob = new Blob([res], {type: 'text/markdown'});
@@ -455,7 +460,7 @@ const App = () => {
 
   const runDashboardAnalysis = async () => {
       setIsAnalyzing(true);
-      const res = await analyzeDashboardData({ courses: coursesList, employees: employeesList }, lang);
+      const res = await analyzeDashboardData({ courses: coursesList, employees: employeesList }, lang, systemSettings.apiKey); // PASS API KEY
       setDashboardAnalysis(res);
       setIsAnalyzing(false);
   };
@@ -467,7 +472,7 @@ const App = () => {
       setInputMessage('');
       setIsTyping(true);
       try {
-          const stream = streamGeminiResponse(inputMessage, msgs, lang);
+          const stream = streamGeminiResponse(inputMessage, msgs, lang, systemSettings.apiKey); // PASS API KEY
           let full = '';
           setMessages([...msgs, { role: 'assistant', content: '' }]);
           for await (const chunk of stream) {
@@ -484,21 +489,15 @@ const App = () => {
     const activeCourses = coursesList.filter(c => c.status === 'active').length;
     const completedCourses = coursesList.filter(c => c.status === 'completed').length;
     const totalEmployees = employeesList.length;
-    
-    // Calculate total participants across all courses
     const totalParticipants = coursesList.reduce((acc, curr) => acc + curr.participants, 0);
-    
-    // Calculate avg completion rate
     const avgCompletion = totalCourses > 0 
       ? Math.round(coursesList.reduce((acc, curr) => acc + curr.completion, 0) / totalCourses) 
       : 0;
 
-    // Calculate top employees
     const topEmployees = [...employeesList]
       .sort((a, b) => b.coursesCompleted - a.coursesCompleted)
       .slice(0, 5);
 
-    // Calculate Department Distribution
     const deptMap: {[key: string]: number} = {};
     employeesList.forEach(e => {
        deptMap[e.department] = (deptMap[e.department] || 0) + 1;
@@ -513,7 +512,6 @@ const App = () => {
   const localizedMonthlyData = MONTHLY_TRAINING_DATA.map(d => ({ ...d, month: lang === 'en' ? d.month : 'ماه' }));
   const localizedDeptData = DEPARTMENT_DATA;
 
-  // Chart Data prep
   const currentGeneralRows = generalCourseReports[selectedYear]?.[selectedDeptSeason]?.['General'] || [];
   const coursePerformanceData = currentGeneralRows.map((row, i) => ({
       name: i + 1, course: row.courseName, participants: row.participants, hours: row.durationHours, totalCost: row.totalCost
@@ -528,7 +526,6 @@ const App = () => {
       return { name: u, value: item ? (consolidatedChartMetric === 'totalCost' ? item.totalCost : consolidatedChartMetric === 'personHours' ? item.personHours : item.totalPersonnel) : 0 };
   }).filter(x => x.value > 0);
 
-  // Colors for Pie Chart
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   return (
@@ -1038,7 +1035,28 @@ const App = () => {
                  <div className="space-y-4 max-w-md">
                     <div><label className="block text-xs font-bold">Company Name</label><input className="w-full border rounded p-2" value={systemSettings.companyName} onChange={e=>handleSettingsChange('companyName',e.target.value)}/></div>
                     <div><label className="block text-xs font-bold">Logo</label><input type="file" onChange={handleLogoUpload}/>{systemSettings.logo && <img src={systemSettings.logo} className="h-16 mt-2"/>}</div>
-                    <div className="flex gap-2">
+                    
+                    {/* API Key Input */}
+                    <div className="bg-slate-50 p-4 rounded-xl border mt-4">
+                       <div className="flex justify-between items-center mb-2">
+                           <h3 className="font-bold text-sm flex items-center gap-2"><KeyRound size={16}/> Google Gemini API Key</h3>
+                           <button onClick={() => setShowApiKey(!showApiKey)} className="text-slate-400 hover:text-slate-600">
+                               {showApiKey ? <EyeOff size={16}/> : <Eye size={16}/>}
+                           </button>
+                       </div>
+                       <input 
+                           type={showApiKey ? "text" : "password"}
+                           className="w-full border rounded p-2 text-sm font-mono"
+                           placeholder="Enter your API Key here..."
+                           value={systemSettings.apiKey || ''}
+                           onChange={e => handleSettingsChange('apiKey', e.target.value)}
+                       />
+                       <p className="text-[10px] text-slate-400 mt-1">
+                           {lang === 'fa' ? 'این کلید فقط در مرورگر شما ذخیره می‌شود.' : 'Stored locally in your browser.'}
+                       </p>
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
                        {['blue','emerald','violet','rose','amber'].map((c:any) => <button key={c} onClick={()=>setTheme(c)} className={`w-8 h-8 rounded-full bg-${c}-500 ${theme===c?'ring-2 ring-offset-2':''}`}/>)}
                     </div>
                  </div>

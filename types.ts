@@ -41,6 +41,7 @@ export interface SystemSettings {
   ceoName: string;
   trainingManagerName: string;
   logo: string | null;
+  apiKey?: string; // Added API Key field
 }
 
 export type Season = 'Spring' | 'Summer' | 'Fall' | 'Winter';

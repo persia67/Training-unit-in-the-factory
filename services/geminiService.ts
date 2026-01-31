@@ -26,7 +26,7 @@ const getOfflineMessage = (lang: Language) => lang === 'fa'
 
 // --- Services ---
 
-export const streamGeminiResponse = async function* (userMessage: string, history: Message[], lang: Language = 'fa') {
+export const streamGeminiResponse = async function* (userMessage: string, history: Message[], lang: Language = 'fa', customApiKey?: string) {
   if (!isOnline()) {
     yield getOfflineMessage(lang);
     yield "\n\n";
@@ -39,7 +39,10 @@ export const streamGeminiResponse = async function* (userMessage: string, histor
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const apiKey = customApiKey || process.env.API_KEY || '';
+    if (!apiKey) throw new Error("API Key is missing");
+
+    const ai = new GoogleGenAI({ apiKey });
     
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-pro-preview',
@@ -58,11 +61,11 @@ export const streamGeminiResponse = async function* (userMessage: string, histor
     }
   } catch (error) {
     console.error("Gemini API Error:", error);
-    yield lang === 'fa' ? "خطا در ارتباط. (حالت آفلاین فعال شد)" : "Connection error. (Offline mode activated)";
+    yield lang === 'fa' ? "خطا در ارتباط یا کلید API نامعتبر است." : "Connection error or invalid API Key.";
   }
 };
 
-export const analyzeDashboardData = async (stats: any, lang: Language = 'fa') => {
+export const analyzeDashboardData = async (stats: any, lang: Language = 'fa', customApiKey?: string) => {
   // Offline Heuristic Analysis
   if (!isOnline()) {
     const courseCount = stats.courses?.length || 0;
@@ -88,7 +91,10 @@ export const analyzeDashboardData = async (stats: any, lang: Language = 'fa') =>
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const apiKey = customApiKey || process.env.API_KEY || '';
+    if (!apiKey) throw new Error("API Key is missing");
+
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = lang === 'fa' 
       ? `به عنوان مشاور ارشد آموزش، داده‌های زیر را تحلیل کن و ۳ نقطه قوت و ۳ زمینه قابل بهبود را خلاصه بگو. داده‌ها: ${JSON.stringify(stats)}`
       : `As a senior training consultant, analyze the following data and summarize 3 strengths and 3 areas for improvement. Data: ${JSON.stringify(stats)}`;
@@ -214,7 +220,8 @@ export const generateCertificate = async (
   ceoName: string,
   managerName: string,
   size: ImageSize = '1K',
-  lang: Language = 'fa'
+  lang: Language = 'fa',
+  customApiKey?: string
 ) => {
   // Offline Fallback
   if (!isOnline()) {
@@ -223,7 +230,10 @@ export const generateCertificate = async (
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const apiKey = customApiKey || process.env.API_KEY || '';
+    if (!apiKey) throw new Error("API Key is missing");
+
+    const ai = new GoogleGenAI({ apiKey });
     
     // Select model based on requested size to avoid permission issues
     // gemini-2.5-flash-image is more widely available for standard requests (1K)
@@ -290,12 +300,15 @@ export const generateCertificate = async (
   }
 };
 
-export const generateTrainingVideo = async (req: ContentGenerationRequest, lang: Language) => {
+export const generateTrainingVideo = async (req: ContentGenerationRequest, lang: Language, customApiKey?: string) => {
   if (!isOnline()) {
     throw new Error(lang === 'fa' ? "تولید ویدیو نیازمند اینترنت است." : "Video generation requires internet.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const apiKey = customApiKey || process.env.API_KEY || '';
+  if (!apiKey) throw new Error("API Key is missing");
+
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = lang === 'fa' 
     ? `یک ویدیوی آموزشی کوتاه و حرفه‌ای برای کارکنان صنعت فولاد. موضوع: ${req.topic}. مخاطب: ${req.targetAudience}. توضیحات: ${req.description}.`
     : `A short professional training video for steel industry workers. Topic: ${req.topic}. Audience: ${req.targetAudience}. Description: ${req.description}.`;
@@ -314,7 +327,11 @@ export const generateTrainingVideo = async (req: ContentGenerationRequest, lang:
 
     const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
     if (!videoUri) throw new Error("Video generation failed.");
-    return videoUri;
+    
+    // Append Key for the fetch if using the download link directly, but here we just return URI
+    // The consumer might need the key to fetch the bytes, but VEO URIs are usually temporary signed URLs.
+    // If it requires key: return `${videoUri}&key=${apiKey}`;
+    return `${videoUri}&key=${apiKey}`;
 
   } catch (error) {
     console.error("Veo API Error:", error);
@@ -322,7 +339,7 @@ export const generateTrainingVideo = async (req: ContentGenerationRequest, lang:
   }
 };
 
-export const generateTrainingDocument = async (req: ContentGenerationRequest, lang: Language) => {
+export const generateTrainingDocument = async (req: ContentGenerationRequest, lang: Language, customApiKey?: string) => {
   // Offline Template Generator
   if (!isOnline()) {
     const title = req.topic.toUpperCase();
@@ -338,7 +355,10 @@ export const generateTrainingDocument = async (req: ContentGenerationRequest, la
            `This is a template generated in offline mode. Please connect to the internet for AI-enhanced content generation.`;
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const apiKey = customApiKey || process.env.API_KEY || '';
+  if (!apiKey) throw new Error("API Key is missing");
+
+  const ai = new GoogleGenAI({ apiKey });
   
   let prompt = '';
   if (req.format === 'pamphlet') {
@@ -367,9 +387,11 @@ export class GeminiLiveSession {
   private inputAudioContext: AudioContext | null = null;
   private outputAudioContext: AudioContext | null = null;
   private lang: Language;
+  private apiKey: string;
 
-  constructor(lang: Language = 'fa') {
+  constructor(lang: Language = 'fa', customApiKey?: string) {
     this.lang = lang;
+    this.apiKey = customApiKey || process.env.API_KEY || '';
   }
 
   async start(onClose: () => void) {
@@ -377,6 +399,12 @@ export class GeminiLiveSession {
       alert(this.lang === 'fa' ? "قابلیت صوتی نیازمند اینترنت است." : "Voice mode requires internet.");
       onClose();
       return;
+    }
+
+    if (!this.apiKey) {
+         alert(this.lang === 'fa' ? "کلید API تنظیم نشده است." : "API Key is missing.");
+         onClose();
+         return;
     }
     
     // ... Existing Live API Code ... (Standard Implementation)
