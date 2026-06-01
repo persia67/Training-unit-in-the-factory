@@ -3,5 +3,6 @@
   "description": "A comprehensive training management system for the steel industry with AI-powered consulting and advanced analytics.",
   "requestFramePermissions": [
     "microphone"
-  ]
+  ],
+  "majorCapabilities": []
 }
