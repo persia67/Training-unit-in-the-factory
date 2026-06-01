@@ -156,7 +156,7 @@ const App = () => {
   const [newRowData, setNewRowData] = useState<Partial<DepartmentReportRow>>({
     courseName: '', participants: 0, costPerPerson: 0, durationHours: 0, location: ''
   });
-  const [consolidatedChartMetric, setConsolidatedChartMetric] = useState<'personHours' | 'totalCost' | 'totalPersonnel'>('personPersonnel');
+  const [consolidatedChartMetric, setConsolidatedChartMetric] = useState<'personHours' | 'totalCost' | 'totalPersonnel'>('totalPersonnel');
 
   // UI States
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);

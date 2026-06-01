@@ -16,7 +16,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@google/genai": "^0.1.1",
+    "@google/genai": "*",
     "lucide-react": "^0.344.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
